@@ -27,7 +27,7 @@ export function RouteStrip({ progress, vocab, mapHref }: { progress: VenueProgre
   return (
     <section aria-label={`Route progress: ${done} of ${items.length} ${vocab.venues.toLowerCase()} finished`} className="stack-sm">
       <div className="row-between small">
-        <strong>The route</strong>
+        <strong>Progress</strong>
         <span className="row" style={{ gap: 10 }}>
           <span className="muted">
             {done}/{items.length}

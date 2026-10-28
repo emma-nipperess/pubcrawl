@@ -15,7 +15,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:db": "vitest run tests/db",
-    "test:e2e": "npm run build:e2e && playwright test",
+    "test:e2e": "npm run build:e2e && playwright test && playwright test -c playwright.dev.config.ts",
     "build:e2e": "VITE_SUPABASE_URL=https://e2e.supabase.test VITE_SUPABASE_ANON_KEY=e2e-public-key VITE_BASE_PATH=/pub-crawl/ npm run build",
     "check": "npm run typecheck && npm run lint && npm test && npm run build"
   },

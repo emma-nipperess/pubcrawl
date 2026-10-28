@@ -12,6 +12,10 @@ import { challengeState } from '@/features/challenges/meta';
 import { RouteStrip } from './RouteStrip';
 import { AnnouncementCard } from './AnnouncementCard';
 import { isOver } from '@/features/events/status';
+import { RouteMap } from '@/features/map/LazyMap';
+import { stopsFromProgress } from '@/features/map/stops';
+import { formatDistance, haversine, legs, venueLatLng, walkingMinutes } from '@/features/map/geo';
+import { useMemo } from 'react';
 
 export default function Dashboard() {
   const g = useGame();
@@ -111,6 +115,7 @@ export default function Dashboard() {
         </Card>
       )}
 
+      <HomeMap />
       <RouteStrip progress={g.progress} vocab={theme.vocab} mapHref={`/e/${event.id}/route`} />
 
       <section className="grid-2" aria-label="Scores">
@@ -288,3 +293,43 @@ function LeaveLink() {
   );
 }
 
+/** Route map preview on Home. Static (no pan/zoom) so it never fights page scrolling; tap for the full map. */
+function HomeMap() {
+  const g = useGame();
+  const { event, theme } = g;
+  const items = useMemo(() => g.progress.filter((p) => p.state !== 'disabled'), [g.progress]);
+  const stops = useMemo(() => stopsFromProgress(items), [items]);
+  const pinned = stops.filter((s) => s.at).length;
+  if (pinned === 0) return null;
+  const total = legs(items.map((i) => venueLatLng(i.venue))).reduce<number>((a, d) => a + (d ?? 0), 0);
+  const cur = g.summary.current;
+  const next = g.summary.next;
+  const from = cur ? venueLatLng(cur.venue) : null;
+  const to = next ? venueLatLng(next.venue) : null;
+  const hop = from && to ? haversine(from, to) : null;
+  return (
+    <section className="stack-sm" aria-labelledby="map-h">
+      <div className="row-between">
+        <h2 id="map-h" className="section-title">
+          The route
+        </h2>
+        {pinned > 1 && (
+          <span className="small muted">
+            {formatDistance(total)} · ~{walkingMinutes(total)} min walk
+          </span>
+        )}
+      </div>
+      <Link to={`/e/${event.id}/route`} className="card-link home-map" aria-label="Open the full route map">
+        <RouteMap stops={stops} dark={theme.dark} height={220} interactive={false} />
+        <span className="home-map__cta btn btn--sm">
+          <Icon name="map-pin" size={16} /> Full map
+        </span>
+      </Link>
+      {next && hop != null && (
+        <p className="small">
+          <Icon name="footprints" size={14} /> Next: <strong>{next.venue.name}</strong> · {formatDistance(hop)} · ~{walkingMinutes(hop)} min
+        </p>
+      )}
+    </section>
+  );
+}

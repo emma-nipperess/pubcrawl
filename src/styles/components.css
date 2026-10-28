@@ -525,3 +525,7 @@ dialog.confirm::backdrop { background: rgba(10, 12, 12, 0.55); }
 .map-tip { font-family: var(--font-body); font-size: 13px; }
 .leg { display: flex; align-items: center; gap: 6px; padding: 2px 0 2px 18px; font-size: var(--fs-xs); color: var(--c-ink-muted); }
 .timeline > li.leg::before { display: none; }
+
+.home-map { position: relative; display: block; }
+.home-map .route-map { pointer-events: none; }
+.home-map__cta { position: absolute; right: 10px; bottom: 28px; z-index: 500; }

@@ -25,9 +25,22 @@ export interface MapStop {
   sub?: string;
 }
 
-function baseMap(el: HTMLElement, dark: boolean) {
+/** Leaflet measures its container once; re-measure when it resizes (sheets, tabs, rotation). */
+function watchSize(el: HTMLElement, m: L.Map) {
+  if (typeof ResizeObserver === 'undefined') return null;
+  const ro = new ResizeObserver(() => m.invalidateSize({ pan: false }));
+  ro.observe(el);
+  return ro;
+}
+
+function baseMap(el: HTMLElement, dark: boolean, interactive = true) {
   const map = L.map(el, {
-    zoomControl: true,
+    zoomControl: interactive,
+    dragging: interactive,
+    touchZoom: interactive,
+    doubleClickZoom: interactive,
+    boxZoom: interactive,
+    keyboard: interactive,
     attributionControl: true,
     zoomAnimation: !reduceMotion(),
     fadeAnimation: !reduceMotion(),
@@ -51,7 +64,24 @@ function stopIcon(s: MapStop) {
 }
 
 /** Read-only route map: numbered stops, path in order, current stop highlighted. */
-export default function RouteMap({ stops, dark, onSelect, selectedId, height = 320, meLocation }: { stops: MapStop[]; dark?: boolean; onSelect?: (id: string) => void; selectedId?: string | null; height?: number; meLocation?: LatLng | null }) {
+export default function RouteMap({
+  stops,
+  dark,
+  onSelect,
+  selectedId,
+  height = 320,
+  meLocation,
+  interactive = true,
+}: {
+  stops: MapStop[];
+  dark?: boolean;
+  onSelect?: (id: string) => void;
+  selectedId?: string | null;
+  height?: number;
+  meLocation?: LatLng | null;
+  /** false = static preview (no pan/zoom), so it never traps page scrolling on phones */
+  interactive?: boolean;
+}) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
@@ -60,14 +90,21 @@ export default function RouteMap({ stops, dark, onSelect, selectedId, height = 3
 
   useEffect(() => {
     if (!el.current) return;
-    map.current = baseMap(el.current, Boolean(dark));
-    layer.current = L.layerGroup().addTo(map.current);
-    meLayer.current = L.layerGroup().addTo(map.current);
+    const m = baseMap(el.current, Boolean(dark), interactive);
+    map.current = m;
+    layer.current = L.layerGroup().addTo(m);
+    meLayer.current = L.layerGroup().addTo(m);
+    // A new map instance has no view yet: always fit it (React StrictMode and
+    // theme changes re-create the map, which previously left it blank grey).
+    fitted.current = '';
+    m.setView([51.505, -0.09], 3);
+    const ro = watchSize(el.current, m);
     return () => {
-      map.current?.remove();
+      ro?.disconnect();
+      m.remove();
       map.current = null;
     };
-  }, [dark]);
+  }, [dark, interactive]);
 
   useEffect(() => {
     const m = map.current;
@@ -99,7 +136,7 @@ export default function RouteMap({ stops, dark, onSelect, selectedId, height = 3
         tip.appendChild(sub);
       }
       marker.bindTooltip(tip, { direction: 'top', permanent: s.state === 'active' || s.id === selectedId, className: 'map-tip' });
-      if (onSelect) marker.on('click keypress', () => onSelect(s.id));
+      if (onSelect && interactive) marker.on('click keypress', () => onSelect(s.id));
       marker.addTo(g);
     }
     // re-fit only when the set of placed stops changes (not on every status update)
@@ -108,9 +145,8 @@ export default function RouteMap({ stops, dark, onSelect, selectedId, height = 3
       fitted.current = sig;
       if (placed.length === 1) m.setView(placed[0].at!, 16);
       else if (placed.length > 1) m.fitBounds(L.latLngBounds(placed.map((s) => s.at!)), { padding: [36, 36], maxZoom: 17 });
-      else m.setView([51.505, -0.09], 3);
     }
-  }, [stops, onSelect, selectedId]);
+  }, [stops, onSelect, selectedId, interactive, dark]);
 
   useEffect(() => {
     const m = map.current;
@@ -142,7 +178,9 @@ export function PinPicker({ value, onChange, dark, height = 240 }: { value: LatL
     map.current = m;
     m.setView(value ?? [51.505, -0.09], value ? 17 : 3);
     m.on('click', (e: L.LeafletMouseEvent) => cb.current({ lat: round(e.latlng.lat), lng: round(e.latlng.lng) }));
+    const ro = watchSize(el.current, m);
     return () => {
+      ro?.disconnect();
       m.remove();
       map.current = null;
       marker.current = null;
