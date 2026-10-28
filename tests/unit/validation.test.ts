@@ -5,6 +5,7 @@ import { formatCode, parseInvite, parseQuickVenues, validateChallenge, validateE
 import { contrastRatio, customThemeVars, readableInk, THEMES, THEME_ORDER } from '@/features/themes/themes';
 import { CHALLENGE_LIBRARY, TEMPLATES } from '@/features/templates/content';
 import { CHALLENGE_TYPES } from '@/features/challenges/meta';
+import { zipEntryName, type EventMediaItem } from '@/features/media/downloadAll';
 
 const bytes = (...xs: (number | string)[]) => {
   const out: number[] = [];
@@ -138,5 +139,12 @@ describe('themes and templates', () => {
     expect(vars['--c-accent']).toBe('#123456');
     expect(vars['--c-accent-ink']).toBe('#ffffff');
     expect(customThemeVars({ accent: 'not-a-colour' })['--c-accent']).toBe('#b8401b');
+  });
+});
+
+describe('download all', () => {
+  it('names downloaded media by order, time, team, person and challenge', () => {
+    const m = { created_at: '2026-10-31T20:05:00', member_name: 'Alex', team_name: 'The Coven', challenge_title: 'Costume reveal / pose', mime_type: 'image/jpeg' } as EventMediaItem;
+    expect(zipEntryName(m, 0)).toMatch(/^001 20261031-2005 The Coven - Alex - Costume reveal - pose\.jpg$/);
   });
 });

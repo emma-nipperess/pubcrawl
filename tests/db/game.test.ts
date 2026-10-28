@@ -619,7 +619,7 @@ describe('storage permissions', () => {
     await expect(submit(t.q, t.ch['Snap'], { p_media: [{ path: path2, kind: 'image' }] }, sid3)).rejects.toThrow(/does not belong/);
   });
 
-  it('pending proof is private; approved proof follows the visibility setting', async () => {
+  it('proof is shared with the crawl when sharing is on (pending too), private when off', async () => {
     for (const showOthers of [true, false]) {
       const t = await storageEvent(showOthers);
       const sid = uuid();
@@ -630,9 +630,11 @@ describe('storage permissions', () => {
       const read = (uid: string) => db.as(uid, `select name from storage.objects where name = $1`, [path]);
       expect(await read(t.p)).toHaveLength(1);
       expect(await read(t.owner)).toHaveLength(1);
-      expect(await read(t.q)).toHaveLength(0);
+      expect(await read(t.q)).toHaveLength(showOthers ? 1 : 0);
       expect(await read(t.outsider)).toHaveLength(0);
-      expect(await db.as(t.q, `select * from public.submission_media where submission_id = $1`, [sid])).toHaveLength(0);
+      expect(await db.as(t.q, `select * from public.submission_media where submission_id = $1`, [sid])).toHaveLength(showOthers ? 1 : 0);
+      expect(await db.as(t.q, `select * from public.list_event_media($1)`, [t.eventId])).toHaveLength(showOthers ? 1 : 0);
+      await expect(db.as(t.outsider, `select * from public.list_event_media($1)`, [t.eventId])).rejects.toThrow(/Join the event/);
       await db.rpc(t.owner, 'review_submission', { p_submission_id: sid, p_decision: 'approved' });
       expect(await read(t.q)).toHaveLength(showOthers ? 1 : 0);
       expect(await read(t.outsider)).toHaveLength(0);
@@ -806,5 +808,73 @@ describe('seed data', () => {
     expect(rows[0].n).toBe(1);
     const m = await db.admin<{ n: number }>(`select count(*)::int as n from public.event_members m join public.events e on e.id = m.event_id where e.name = 'Demo Pub Golf'`);
     expect(m[0].n).toBe(3);
+  });
+});
+
+describe('player-made teams and shared gallery', () => {
+  it('players can create and switch teams by default even when the organiser assigns teams', async () => {
+    const owner = await db.user('owner');
+    const ev = await setupEvent(owner, { event: { team_selection: 'organiser', team_max_size: 2 } });
+    const [{ allow_self_teams }] = await db.admin<{ allow_self_teams: boolean }>(`select allow_self_teams from public.events where id = $1`, [ev.eventId]);
+    expect(allow_self_teams).toBe(true);
+    await db.call(owner, 'set_event_status', { p_event_id: ev.eventId, p_status: 'published' });
+    const [a, b, c] = [await db.user('a'), await db.user('b'), await db.user('c')];
+    const aId = await join(a, ev.code, 'Ann');
+    await join(b, ev.code, 'Bob');
+    await join(c, ev.code, 'Cat');
+    const teamId = await db.rpc<string>(a, 'create_team', { p_event_id: ev.eventId, p_name: 'Ann’s Army', p_color: null, p_icon: null });
+    const [link] = await db.admin<{ team_id: string }>(`select team_id from public.team_members where member_id = $1 and left_at is null`, [aId]);
+    expect(link.team_id).toBe(teamId);
+    await expect(db.rpc(b, 'create_team', { p_event_id: ev.eventId, p_name: 'ann’s army ', p_color: null, p_icon: null })).rejects.toThrow(/already a team/);
+    await db.call(b, 'choose_team', { p_event_id: ev.eventId, p_team_id: teamId });
+    await expect(db.call(c, 'choose_team', { p_event_id: ev.eventId, p_team_id: teamId })).rejects.toThrow(/full/);
+    // organiser locks teams → no more self-service changes
+    await db.admin(`update public.events set teams_locked = true where id = $1`, [ev.eventId]);
+    await expect(db.call(c, 'choose_team', { p_event_id: ev.eventId, p_team_id: teamId })).rejects.toThrow(/locked/);
+    await expect(db.rpc(c, 'create_team', { p_event_id: ev.eventId, p_name: 'Late team', p_color: null, p_icon: null })).rejects.toThrow(/not open/);
+  });
+
+  it('organisers can switch player-made teams off', async () => {
+    const owner = await db.user('owner');
+    const ev = await setupEvent(owner, { event: { team_selection: 'organiser', allow_self_teams: false, team_names: [{ name: 'Red' }] } });
+    await db.call(owner, 'set_event_status', { p_event_id: ev.eventId, p_status: 'published' });
+    const p = await db.user('p');
+    await join(p, ev.code, 'Pat');
+    const [{ id }] = await db.admin<{ id: string }>(`select id from public.teams where event_id = $1`, [ev.eventId]);
+    await expect(db.call(p, 'choose_team', { p_event_id: ev.eventId, p_team_id: id })).rejects.toThrow(/assigned by the organiser/);
+    await expect(db.rpc(p, 'create_team', { p_event_id: ev.eventId, p_name: 'Mine', p_color: null, p_icon: null })).rejects.toThrow(/not open/);
+  });
+
+  it('the gallery lists everyone’s shared media but never rejected, hidden or other events’ media', async () => {
+    const owner = await db.user('owner');
+    const ev = await setupEvent(owner, { event: { play_mode: 'individual' }, venues: [{ name: 'V', challenges: [{ title: 'Snap', type: 'photo', points: 5, repeatable: true, max_attempts: 5 }, { title: 'Judge', type: 'photo', points: 5, requires_approval: true }] }] });
+    const other = await setupEvent(owner, { venues: [{ name: 'W', challenges: [{ title: 'Snap', type: 'photo', points: 5 }] }] });
+    for (const e of [ev, other]) {
+      await db.call(owner, 'set_event_status', { p_event_id: e.eventId, p_status: 'published' });
+    }
+    const [p, q] = [await db.user('p'), await db.user('q')];
+    await join(p, ev.code, 'Pat');
+    await join(q, ev.code, 'Quinn');
+    await join(p, other.code, 'Pat');
+    for (const e of [ev, other]) await db.call(owner, 'set_event_status', { p_event_id: e.eventId, p_status: 'in_progress' });
+    const up = async (e: typeof ev, uid: string, challenge: string) => {
+      const sid = uuid();
+      const path = `${e.eventId}/${uid}/${sid}/x.jpg`;
+      await fakeUpload(db, uid, path);
+      await submit(uid, e.ch[challenge], { p_media: [{ path, kind: 'image' }] }, sid);
+      return sid;
+    };
+    await up(ev, p, 'Snap');
+    const hiddenSid = await up(ev, p, 'Snap');
+    const rejected = await up(ev, q, 'Judge');
+    await up(other, p, 'Snap');
+    await db.rpc(owner, 'review_submission', { p_submission_id: rejected, p_decision: 'rejected' });
+    await db.call(owner, 'moderate_submission', { p_submission_id: hiddenSid, p_hidden: true });
+    const seenByQ = await db.as<{ member_name: string; status: string }>(q, `select * from public.list_event_media($1)`, [ev.eventId]);
+    // Pat's visible photo + Quinn's own rejected one; not Pat's hidden one or the other event's
+    expect(seenByQ.map((r) => `${r.member_name}:${r.status}`).sort()).toEqual(['Pat:approved', 'Quinn:rejected']);
+    const seenByP = await db.as<{ member_name: string }>(p, `select * from public.list_event_media($1)`, [ev.eventId]);
+    expect(seenByP.map((r) => r.member_name).sort()).toEqual(['Pat', 'Pat']); // own hidden one is still theirs
+    expect(await db.as(owner, `select * from public.list_event_media($1)`, [ev.eventId])).toHaveLength(3);
   });
 });

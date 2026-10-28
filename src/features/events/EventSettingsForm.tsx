@@ -152,7 +152,7 @@ export function RulesFields({ value, onChange, errors, theme, live }: { value: E
               <option value="self">Players choose when they join</option>
               <option value="auto">Automatic — smallest {team} first</option>
             </Select>
-            <Toggle label={`Players can create their own ${team}s`} checked={value.allow_self_teams ?? false} onChange={(v) => set('allow_self_teams', v)} />
+            <Toggle label={`Players can create and join their own ${team}s`} hint="They can start a new one or pick any with room, until you lock teams." checked={value.allow_self_teams ?? true} onChange={(v) => set('allow_self_teams', v)} />
             <NumberInput label={`Max ${team} size`} min={1} max={100} value={value.team_max_size ?? null} onValue={(n) => set('team_max_size', n)} error={errors?.team_max_size} placeholder="No limit" />
             {live !== undefined && <Toggle label={`Lock ${team}s`} hint="Stops players switching teams." checked={value.teams_locked ?? false} onChange={(v) => set('teams_locked', v)} />}
           </>

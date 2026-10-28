@@ -200,8 +200,8 @@ function TeamPicker() {
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   if (!member || event.play_mode === 'individual' || event.teams_locked) return null;
-  const canChoose = event.team_selection === 'self';
-  if (!canChoose && !event.allow_self_teams) return null;
+  const canChoose = event.team_selection === 'self' || event.allow_self_teams;
+  if (!canChoose) return null;
   const teams = g.teams.data?.teams ?? [];
   const counts = new Map<string, number>();
   g.teams.data?.links.forEach((l) => counts.set(l.team_id, (counts.get(l.team_id) ?? 0) + 1));

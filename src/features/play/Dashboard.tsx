@@ -94,7 +94,7 @@ export default function Dashboard() {
           {event.meeting_instructions && <p className="small muted prewrap">{event.meeting_instructions}</p>}
           {event.play_mode !== 'individual' && !myTeam && (
             <p className="small">
-              <Icon name="shuffle" size={14} /> {event.team_selection === 'self' ? `Pick your ${theme.vocab.team.toLowerCase()} on the Card tab.` : `${event.organiser_name} will put you in a ${theme.vocab.team.toLowerCase()} before the start.`}
+              <Icon name="shuffle" size={14} /> {event.team_selection === 'self' || event.allow_self_teams ? `Pick or start a ${theme.vocab.team.toLowerCase()} on the Card tab.` : `${event.organiser_name} will put you in a ${theme.vocab.team.toLowerCase()} before the start.`}
             </p>
           )}
         </Card>

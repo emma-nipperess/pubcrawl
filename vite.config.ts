@@ -13,6 +13,9 @@ export default defineConfig(({ mode }) => {
   return {
     base,
     plugins: [react()],
+    // loopback only: the dev server is never reachable from other machines
+    server: { host: '127.0.0.1', port: 5173, strictPort: true },
+    preview: { host: '127.0.0.1', port: 4173, strictPort: true },
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
     build: {
       target: 'es2020',

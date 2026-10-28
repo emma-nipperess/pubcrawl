@@ -254,7 +254,7 @@ export const EVENT_DEFAULTS: Partial<EventRow> = {
   join_open: true,
   play_mode: 'both',
   team_selection: 'organiser',
-  allow_self_teams: false,
+  allow_self_teams: true,
   allow_skip: true,
   skip_policy: 'none',
   skip_penalty: 0,

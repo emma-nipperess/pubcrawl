@@ -199,7 +199,7 @@ export function useFeed(eventId: string | undefined, enabled = true) {
           .from('challenge_submissions')
           .select('*, submission_media(*)')
           .eq('event_id', eventId!)
-          .eq('status', 'approved')
+          .in('status', ['approved', 'pending'])
           .eq('hidden', false)
           .order('created_at', { ascending: false })
           .range(pageParam * size, pageParam * size + size - 1),

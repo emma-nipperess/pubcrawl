@@ -3,11 +3,12 @@ import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-r
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { TopBar } from '@/components/Shell';
 import { Avatar, Banner, Button, EmptyState, ErrorState, LinkButton, LoadingBlock, TextInput } from '@/components/ui';
-import { Icon, AVATAR_ICONS } from '@/components/Icon';
+import { Icon, AVATAR_ICONS, TEAM_ICONS } from '@/components/Icon';
+import { TEAMS_NAMES_FOR } from '@/features/admin/teamNames';
 import { useFeedback } from '@/components/feedback';
 import { ThemeMotif, ThemeScope } from '@/features/themes/ThemeScope';
 import { getTheme } from '@/features/themes/themes';
-import { AVATAR_COLORS } from '@/features/templates/content';
+import { AVATAR_COLORS, TEAM_COLORS } from '@/features/templates/content';
 import { useAuth } from '@/lib/auth';
 import { rpc } from '@/lib/supabase/queries';
 import type { EventPreview } from '@/lib/supabase/types';
@@ -46,6 +47,8 @@ export function JoinPage() {
   const [color, setColor] = useState(saved.color ?? AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)]);
   const [icon, setIcon] = useState(saved.icon ?? 'pint');
   const [team, setTeam] = useState<string | null>(null);
+  const [newTeam, setNewTeam] = useState('');
+  const [teamErr, setTeamErr] = useState<string>();
   const [nameErr, setNameErr] = useState<string>();
   const [joining, setJoining] = useState(false);
   const inFlight = useRef(false);
@@ -69,6 +72,10 @@ export function JoinPage() {
     const err = validateDisplayName(name);
     setNameErr(err);
     if (err) return;
+    if (team === 'new' && !newTeam.trim()) {
+      setTeamErr('Name your new team, or pick another option.');
+      return;
+    }
     inFlight.current = true;
     setJoining(true);
     try {
@@ -79,9 +86,19 @@ export function JoinPage() {
         p_display_name: name.trim(),
         p_avatar_color: color,
         p_avatar_icon: icon,
-        p_team_id: team,
+        p_team_id: team && team !== 'new' && p.team_selection === 'self' ? team : null,
       });
       if (!memberId) throw new Error('Could not join');
+      // You're in the event at this point; a team problem shouldn't undo that.
+      try {
+        if (team === 'new') {
+          await rpc('create_team', { p_event_id: p.id, p_name: newTeam.trim(), p_color: TEAM_COLORS[p.teams.length % TEAM_COLORS.length], p_icon: TEAM_ICONS[p.teams.length % TEAM_ICONS.length] });
+        } else if (team && p.team_selection !== 'self') {
+          await rpc('choose_team', { p_event_id: p.id, p_team_id: team });
+        }
+      } catch (teamError) {
+        fb.toast(`Joined, but the team didn’t work out: ${(teamError as Error).message} You can pick one on the Card tab.`, 'error');
+      }
       rememberEvent({ id: p.id, name: p.name, theme_key: p.theme_key, role: 'participant' });
       sessionStorage.removeItem(DRAFT_KEY);
       await qc.invalidateQueries();
@@ -153,7 +170,8 @@ export function JoinPage() {
                 ? 'You need the invitation link or code from the organiser to join.'
                 : null;
   const late = p.status === 'in_progress' || p.status === 'paused';
-  const canPickTeam = p.play_mode !== 'individual' && p.team_selection === 'self' && !p.teams_locked && p.teams.length > 0;
+  const canChooseTeam = p.play_mode !== 'individual' && !p.teams_locked && (p.team_selection === 'self' || p.allow_self_teams);
+  const canPickTeam = canChooseTeam && (p.teams.length > 0 || p.allow_self_teams);
 
   return (
     <ThemeScope themeKey={p.theme_key} custom={p.theme_custom}>
@@ -255,6 +273,31 @@ export function JoinPage() {
                       </label>
                     );
                   })}
+                  {p.allow_self_teams && (
+                    <label className="option-card">
+                      <input type="radio" name="team" value="new" checked={team === 'new'} onChange={() => setTeam('new')} />
+                      <div className="card card--tight row">
+                        <span className="avatar" style={{ background: 'var(--c-accent-2)' }}>
+                          <Icon name="plus" />
+                        </span>
+                        <strong className="grow">Start a new {theme.vocab.team.toLowerCase()}</strong>
+                      </div>
+                    </label>
+                  )}
+                  {team === 'new' && (
+                    <TextInput
+                      label={`${theme.vocab.team} name`}
+                      value={newTeam}
+                      maxLength={40}
+                      autoFocus
+                      onChange={(e) => {
+                        setNewTeam(e.target.value);
+                        setTeamErr(undefined);
+                      }}
+                      error={teamErr}
+                      placeholder={TEAMS_NAMES_FOR(p.theme_key).find((n) => !p.teams.some((t) => t.name === n))}
+                    />
+                  )}
                   <label className="option-card">
                     <input type="radio" name="team" value="" checked={team === null} onChange={() => setTeam(null)} />
                     <div className="card card--tight card--flat">Decide later</div>
@@ -262,12 +305,12 @@ export function JoinPage() {
                 </div>
               </fieldset>
             )}
-            {p.play_mode !== 'individual' && p.team_selection === 'organiser' && (
+            {p.play_mode !== 'individual' && p.team_selection === 'organiser' && !canChooseTeam && (
               <p className="small muted row" style={{ gap: 6 }}>
                 <Icon name="shuffle" size={16} /> The organiser will put you in a {theme.vocab.team.toLowerCase()}.
               </p>
             )}
-            {p.play_mode !== 'individual' && p.team_selection === 'auto' && (
+            {p.play_mode !== 'individual' && p.team_selection === 'auto' && !canChooseTeam && (
               <p className="small muted row" style={{ gap: 6 }}>
                 <Icon name="shuffle" size={16} /> You’ll be placed in the smallest {theme.vocab.team.toLowerCase()} automatically.
               </p>
