@@ -1,0 +1,28 @@
+# Supabase CLI config for local development (`supabase start`). Hosted
+# projects are configured in the dashboard — see docs/SETUP.md.
+project_id = "roundhouse"
+
+[api]
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public"]
+
+[db]
+port = 54322
+major_version = 15
+
+[storage]
+file_size_limit = "50MiB"
+
+[auth]
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173/me"]
+enable_signup = true
+enable_anonymous_sign_ins = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+
+[realtime]
+enabled = true

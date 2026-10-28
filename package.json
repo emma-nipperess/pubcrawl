@@ -1,0 +1,60 @@
+{
+  "name": "roundhouse-pub-crawl",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build && node scripts/postbuild.mjs",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:db": "vitest run tests/db",
+    "test:e2e": "npm run build:e2e && playwright test",
+    "build:e2e": "VITE_SUPABASE_URL=https://e2e.supabase.test VITE_SUPABASE_ANON_KEY=e2e-public-key VITE_BASE_PATH=/pub-crawl/ npm run build",
+    "check": "npm run typecheck && npm run lint && npm test && npm run build"
+  },
+  "dependencies": {
+    "@fontsource-variable/bricolage-grotesque": "5.3.0",
+    "@fontsource-variable/fraunces": "5.3.0",
+    "@fontsource/atkinson-hyperlegible": "5.3.0",
+    "@fontsource/berkshire-swash": "5.3.0",
+    "@fontsource/bungee": "5.3.0",
+    "@fontsource/creepster": "5.3.0",
+    "@fontsource/dm-serif-display": "5.3.0",
+    "@fontsource/righteous": "5.3.0",
+    "@supabase/supabase-js": "2.118.0",
+    "@tanstack/react-query": "5.105.0",
+    "lucide-react": "1.63.0",
+    "qrcode": "1.5.4",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-router-dom": "6.30.6"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.12",
+    "@eslint/js": "9.39.5",
+    "@playwright/test": "1.64.1",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.8",
+    "@types/node": "20.19.43",
+    "@types/qrcode": "1.5.6",
+    "@types/react": "18.3.31",
+    "@types/react-dom": "18.3.7",
+    "@vitejs/plugin-react": "4.7.0",
+    "eslint": "9.39.5",
+    "eslint-plugin-react-hooks": "5.2.0",
+    "globals": "15.15.0",
+    "jsdom": "25.0.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.1",
+    "vite": "6.4.5",
+    "vitest": "3.2.7"
+  }
+}

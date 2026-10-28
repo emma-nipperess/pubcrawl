@@ -1,0 +1,16 @@
+{
+  "name": "Roundhouse — pub crawls & pub golf",
+  "short_name": "Roundhouse",
+  "description": "Run pub crawls and pub golf with live challenges, photo proof, teams and leaderboards.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3eadb",
+  "theme_color": "#1d2a26",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

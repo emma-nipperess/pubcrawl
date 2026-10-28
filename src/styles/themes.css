@@ -1,0 +1,194 @@
+/* ==========================================================================
+   Event themes. Each theme changes colour, display/deco typography, shape,
+   card treatment and decorative motif. Theme metadata (names, vocab, content)
+   lives in src/features/themes/themes.ts; keep keys in sync.
+   ========================================================================== */
+
+[data-theme='halloween'] {
+  --c-bg: #15111b;
+  --c-bg-pattern: rgba(255, 122, 26, 0.07);
+  --c-surface: #211a2a;
+  --c-surface-2: #2d2338;
+  --c-ink: #f7efe4;
+  --c-ink-muted: #cbbfd3;
+  --c-line: #f7efe4;
+  --c-accent: #ff7a1a;
+  --c-accent-ink: #15111b;
+  --c-accent-2: #a6e35f;
+  --c-accent-2-ink: #15111b;
+  --c-success: #a6e35f;
+  --c-success-bg: #24331b;
+  --c-warn: #ffc069;
+  --c-warn-bg: #3a2a12;
+  --c-danger: #ff8a7a;
+  --c-danger-bg: #3d1a1a;
+  --c-info: #9cc7ff;
+  --c-info-bg: #1b2840;
+  --c-focus: #ffd166;
+  --font-deco: 'Creepster', var(--font-display);
+  --shadow-hard: 3px 3px 0 0 #ff7a1a;
+  --shadow-hard-sm: 2px 2px 0 0 #ff7a1a;
+  color-scheme: dark;
+}
+
+[data-theme='birthday'] {
+  --c-bg: #fff2f7;
+  --c-bg-pattern: rgba(214, 47, 127, 0.1);
+  --c-surface: #ffffff;
+  --c-surface-2: #ffe1ee;
+  --c-ink: #2b1b3d;
+  --c-ink-muted: #5b4a6b;
+  --c-line: #2b1b3d;
+  --c-accent: #c0266f;
+  --c-accent-ink: #ffffff;
+  --c-accent-2: #ffc93c;
+  --c-accent-2-ink: #2b1b3d;
+  --font-deco: 'Bungee', var(--font-display);
+  --r-md: 18px;
+  --r-lg: 26px;
+}
+
+[data-theme='hens'] {
+  --c-bg: #fbf2ed;
+  --c-bg-pattern: rgba(162, 59, 94, 0.07);
+  --c-surface: #fffdfb;
+  --c-surface-2: #f6e3dc;
+  --c-ink: #3a2430;
+  --c-ink-muted: #6b5360;
+  --c-line: #a23b5e;
+  --c-accent: #9c3559;
+  --c-accent-ink: #ffffff;
+  --c-accent-2: #e9b9a7;
+  --c-accent-2-ink: #3a2430;
+  --font-deco: 'DM Serif Display', Georgia, serif;
+  --font-display: 'DM Serif Display', Georgia, serif;
+  --border-w: 1.5px;
+  --shadow-hard: 0 6px 18px -8px rgba(162, 59, 94, 0.45);
+  --shadow-hard-sm: 0 3px 10px -6px rgba(162, 59, 94, 0.5);
+  --r-md: 20px;
+  --r-lg: 28px;
+}
+
+[data-theme='christmas'] {
+  --c-bg: #10392d;
+  --c-bg-pattern: rgba(255, 255, 255, 0.07);
+  --c-surface: #174636;
+  --c-surface-2: #1e5442;
+  --c-ink: #fff8ec;
+  --c-ink-muted: #cfe0d6;
+  --c-line: #f2c14e;
+  --c-accent: #e23a4e;
+  --c-accent-ink: #ffffff;
+  --c-accent-2: #f2c14e;
+  --c-accent-2-ink: #10392d;
+  --c-success: #9be3b5;
+  --c-success-bg: #1d4d3a;
+  --c-warn: #ffd98a;
+  --c-warn-bg: #4a3a12;
+  --c-danger: #ffb3ad;
+  --c-danger-bg: #4d1f22;
+  --c-info: #b9dcff;
+  --c-info-bg: #1b3a4e;
+  --c-focus: #ffe08a;
+  --font-deco: 'Berkshire Swash', Georgia, serif;
+  color-scheme: dark;
+}
+
+[data-theme='classic'] {
+  --c-bg: #eaf0e1;
+  --c-bg-pattern: rgba(18, 50, 42, 0.06);
+  --c-surface: #fffef8;
+  --c-surface-2: #dce7cf;
+  --c-ink: #12322a;
+  --c-ink-muted: #46605a;
+  --c-line: #12322a;
+  --c-accent: #1d6644;
+  --c-accent-ink: #ffffff;
+  --c-accent-2: #f2d16b;
+  --c-accent-2-ink: #12322a;
+  --font-deco: 'Fraunces Variable', Georgia, serif;
+  --font-display: 'Fraunces Variable', Georgia, serif;
+  --r-md: 12px;
+  --r-lg: 16px;
+}
+
+[data-theme='retro'] {
+  --c-bg: #ffe6bd;
+  --c-bg-pattern: rgba(42, 30, 92, 0.08);
+  --c-surface: #fff6e4;
+  --c-surface-2: #ffd8a0;
+  --c-ink: #2a1e5c;
+  --c-ink-muted: #54487f;
+  --c-line: #2a1e5c;
+  --c-accent: #c2311c;
+  --c-accent-ink: #ffffff;
+  --c-accent-2: #1fa39a;
+  --c-accent-2-ink: #10142b;
+  --font-deco: 'Righteous', var(--font-display);
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --shadow-hard: 4px 4px 0 0 var(--c-accent-2);
+  --shadow-hard-sm: 3px 3px 0 0 var(--c-accent-2);
+}
+
+/* custom: colours are injected inline by ThemeScope from organiser choices */
+[data-theme='custom'][data-base='dark'] {
+  color-scheme: dark;
+}
+
+/* --------------------------------------------------------------------------
+   Theme motifs (decorative only: aria-hidden, pointer-events none)
+   -------------------------------------------------------------------------- */
+.motif {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+}
+.motif svg { position: absolute; }
+
+.hero-band {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: var(--r-lg);
+  border: var(--border-w) solid var(--c-line);
+  background: var(--c-surface);
+  box-shadow: var(--shadow-hard);
+}
+.hero-band > *:not(.motif) { position: relative; z-index: 1; }
+
+.deco-title {
+  font-family: var(--font-deco);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1.05;
+}
+[data-theme='classic'] .deco-title,
+[data-theme='hens'] .deco-title { font-weight: 600; letter-spacing: -0.01em; }
+
+/* classic pub golf scorecard grid */
+.scorecard-golf {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-sm);
+}
+.scorecard-golf th,
+.scorecard-golf td {
+  border: 1px solid var(--c-line);
+  padding: 6px 4px;
+  text-align: center;
+  min-width: 34px;
+}
+.scorecard-golf th[scope='row'] {
+  text-align: left;
+  padding-left: 8px;
+  background: var(--c-surface-2);
+  font-family: var(--font-display);
+  white-space: nowrap;
+}
+.scorecard-golf thead th { background: var(--c-accent); color: var(--c-accent-ink); }
+.scorecard-golf .is-current { outline: 3px solid var(--c-accent-2); outline-offset: -3px; }
