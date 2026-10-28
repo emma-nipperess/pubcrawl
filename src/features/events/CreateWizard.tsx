@@ -18,6 +18,8 @@ import { useAuth } from '@/lib/auth';
 import { db, rpc, useTemplates } from '@/lib/supabase/queries';
 import type { ChallengeDraft, TemplatePayload, VenueDraft } from '@/lib/supabase/types';
 import { rememberEvent } from '@/lib/recent';
+import { RouteMap, MapCredit } from '@/features/map/LazyMap';
+import { venueLatLng } from '@/features/map/geo';
 
 const STORAGE_KEY = 'roundhouse-wizard-v1';
 const STEPS = ['Theme', 'Details', 'Route', 'Rules', 'Review'] as const;
@@ -263,6 +265,12 @@ export default function CreateWizard() {
               </Badge>
             </div>
             <p className="muted small">Drag to reorder. Tap a {theme.vocab.venue.toLowerCase()} to edit it and its {theme.vocab.challenges.toLowerCase()}.</p>
+            {s.venues.some((v) => venueLatLng(v)) && (
+              <>
+                <RouteMap stops={s.venues.map((v, i) => ({ id: v._k, n: i + 1, name: v.name, at: venueLatLng(v), state: 'upcoming' as const }))} dark={theme.dark} height={240} />
+                <MapCredit />
+              </>
+            )}
             {s.venues.length === 0 ? (
               <EmptyState icon="route" title={`No ${theme.vocab.venues.toLowerCase()} yet`} action={<Button variant="primary" icon="plus" onClick={() => setQuickAdd(true)}>Add {theme.vocab.venues.toLowerCase()}</Button>}>
                 Paste a list of pubs to add them all at once.

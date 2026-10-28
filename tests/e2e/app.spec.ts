@@ -182,3 +182,26 @@ test('privacy page is reachable directly', async ({ page }) => {
   await page.goto(`${BASE}privacy`);
   await expect(page.getByRole('heading', { name: 'Privacy & data', level: 1 })).toBeVisible();
 });
+
+test('organisers can pin a venue on the free map from the wizard', async ({ page }) => {
+  // stub map tiles and address search so the test is offline and doesn't load OSM
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+  await page.route('https://tile.openstreetmap.org/**', (r) => r.fulfill({ contentType: 'image/png', body: png }));
+  await page.route('https://nominatim.openstreetmap.org/**', (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify([{ lat: '51.5081', lon: '-0.0877', display_name: 'The Crypt, London' }]) }));
+  await page.goto(`${BASE}new`);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.getByRole('button', { name: /Next: Details/ }).click();
+  await page.getByLabel('Event name').fill('Map Night');
+  await page.getByLabel('Your name (organiser)').fill('Sam');
+  await page.getByRole('button', { name: /Next: Route/ }).click();
+  await page.locator('strong', { hasText: 'Hole 1 — The Clubhouse' }).click();
+  await page.getByRole('button', { name: 'Find from address' }).click();
+  await expect(page.getByText(/Found: The Crypt, London/)).toBeVisible();
+  await expect(page.getByRole('region', { name: /tap to place the venue/ })).toBeVisible();
+  await expect(page.getByRole('region', { name: /tap to place the venue/ }).locator('.leaflet-marker-icon')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Done' }).click();
+  // the route step now shows the route map with the pinned stop
+  await expect(page.getByRole('region', { name: 'Map of the crawl route' })).toBeVisible();
+  await expect(page.getByText('© OpenStreetMap', { exact: false }).first()).toBeVisible();
+});

@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { Button } from '@/components/ui';
+import { coordsFromMapsUrl, geocodeAddress, venueLatLng } from '@/features/map/geo';
+import { PinPicker } from '@/features/map/LazyMap';
 import type { VenueDraft } from '@/lib/supabase/types';
 import { NumberInput, TextArea, TextInput } from '@/components/ui';
 import { Icon } from '@/components/Icon';
@@ -8,6 +11,27 @@ import type { ThemeDef } from '@/features/themes/themes';
 export function VenueForm({ value, onChange, errors, theme }: { value: VenueDraft; onChange: (v: VenueDraft) => void; errors?: Errors; theme: ThemeDef }) {
   const set = <K extends keyof VenueDraft>(k: K, v: VenueDraft[K]) => onChange({ ...value, [k]: v });
   const [more, setMore] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [finding, setFinding] = useState(false);
+  const [locMsg, setLocMsg] = useState<string>();
+  const at = venueLatLng(value);
+
+  const find = async () => {
+    setFinding(true);
+    setLocMsg(undefined);
+    try {
+      const hit = await geocodeAddress([value.name, value.address].filter(Boolean).join(', '));
+      if (hit) {
+        onChange({ ...value, latitude: hit.lat, longitude: hit.lng });
+        setLocMsg(`Found: ${hit.label}. Check the pin and drag it if needed.`);
+        setPicking(true);
+      } else setLocMsg('No match — try a fuller address, or tap the map to place it.');
+    } catch (e) {
+      setLocMsg((e as Error).message);
+    } finally {
+      setFinding(false);
+    }
+  };
   return (
     <div className="stack">
       <TextInput label={`${theme.vocab.venue} name`} value={value.name} maxLength={80} onChange={(e) => set('name', e.target.value)} error={errors?.name} placeholder="The Red Lion" />
@@ -18,10 +42,45 @@ export function VenueForm({ value, onChange, errors, theme }: { value: VenueDraf
         type="url"
         inputMode="url"
         value={value.maps_url ?? ''}
-        onChange={(e) => set('maps_url', e.target.value)}
+        onChange={(e) => {
+          const url = e.target.value;
+          const c = !venueLatLng(value) ? coordsFromMapsUrl(url) : null;
+          onChange({ ...value, maps_url: url, ...(c ? { latitude: c.lat, longitude: c.lng } : {}) });
+          if (c) setLocMsg('Pinned from the link.');
+        }}
         error={errors?.maps_url}
         placeholder="https://maps.app.goo.gl/…"
       />
+      <fieldset className="stack-sm">
+        <legend>On the route map</legend>
+        <div className="row-wrap">
+          <span className={`badge ${at ? 'badge--success' : ''}`}>
+            <Icon name="map-pin" size={14} /> {at ? `${at.lat.toFixed(5)}, ${at.lng.toFixed(5)}` : 'Not pinned yet'}
+          </span>
+          <Button size="sm" icon="target" loading={finding} disabled={!value.address && !value.name} onClick={find}>
+            Find from address
+          </Button>
+          <Button size="sm" variant="ghost" icon="map-pin" onClick={() => setPicking(!picking)} aria-expanded={picking}>
+            {picking ? 'Hide map' : at ? 'Adjust on map' : 'Pick on map'}
+          </Button>
+          {at && (
+            <Button size="sm" variant="ghost" icon="x" onClick={() => onChange({ ...value, latitude: null, longitude: null })}>
+              Clear
+            </Button>
+          )}
+        </div>
+        {locMsg && (
+          <p className="xsmall" role="status">
+            {locMsg}
+          </p>
+        )}
+        {picking && (
+          <>
+            <PinPicker value={at} dark={theme.dark} onChange={(p) => onChange({ ...value, latitude: p.lat, longitude: p.lng })} />
+            <p className="xsmall muted">Tap the map to drop the pin, drag it to fine-tune. Address search uses OpenStreetMap’s free Nominatim service.</p>
+          </>
+        )}
+      </fieldset>
       <div className="grid-2">
         <TextInput label="Arrive" type="time" value={value.arrive_at ?? ''} onChange={(e) => set('arrive_at', e.target.value || null)} />
         <TextInput label="Leave" type="time" value={value.depart_at ?? ''} onChange={(e) => set('depart_at', e.target.value || null)} />

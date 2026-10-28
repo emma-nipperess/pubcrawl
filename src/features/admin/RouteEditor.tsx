@@ -14,6 +14,9 @@ import { QuickAdd } from '@/features/events/CreateWizard';
 import { CHALLENGE_LIBRARY } from '@/features/templates/content';
 import { hasErrors, validateChallenge, validateVenue } from '@/lib/validation/forms';
 import type { ChallengeDraft, ChallengeRow, VenueDraft, VenueRow } from '@/lib/supabase/types';
+import { RouteMap, MapCredit } from '@/features/map/LazyMap';
+import { stopsFromVenues } from '@/features/map/stops';
+import { coordsFromMapsUrl, formatDistance, geocodeAddress, legs, sleep, venueLatLng, walkingMinutes } from '@/features/map/geo';
 
 function venueToDraft(v: VenueRow, notes?: string): VenueDraft {
   return {
@@ -52,6 +55,8 @@ export default function RouteEditor() {
   const [quick, setQuick] = useState(false);
   const [order, setOrder] = useState<string[] | null>(null);
   const [errs, setErrs] = useState<Record<string, string | undefined>>({});
+  const [showMap, setShowMap] = useState(true);
+  const [geo, setGeo] = useState<{ done: number; total: number } | null>(null);
 
   if (venues.isLoading || challenges.isLoading)
     return (
@@ -70,6 +75,37 @@ export default function RouteEditor() {
   const ordered = order ? order.map((id) => list.find((v) => v.id === id)!).filter(Boolean) : list;
   const all = challenges.data ?? [];
   const editingFinished = event.status === 'completed' || event.status === 'archived';
+
+  const unpinned = ordered.filter((v) => !v.disabled && !venueLatLng(v));
+  const pinned = ordered.filter((v) => !v.disabled && venueLatLng(v));
+  const distance = legs(ordered.filter((v) => !v.disabled).map((v) => venueLatLng(v))).reduce<number>((a, d) => a + (d ?? 0), 0);
+
+  // Pin venues from their maps link or address. Nominatim allows ~1 request/second.
+  const findMissing = async () => {
+    setGeo({ done: 0, total: unpinned.length });
+    let found = 0;
+    try {
+      for (let i = 0; i < unpinned.length; i++) {
+        const v = unpinned[i];
+        let at = coordsFromMapsUrl(v.maps_url);
+        if (!at && (v.address || v.name)) {
+          if (i > 0) await sleep(1100);
+          at = await geocodeAddress([v.name, v.address].filter(Boolean).join(', '));
+        }
+        if (at) {
+          await db.update('venues', v.id, { latitude: at.lat, longitude: at.lng });
+          found++;
+        }
+        setGeo({ done: i + 1, total: unpinned.length });
+      }
+      fb.toast(found ? `Pinned ${found} of ${unpinned.length}. Check them on the map.` : 'Couldn’t find those addresses — edit each venue and tap the map instead.', found ? 'success' : 'error');
+    } catch (e) {
+      fb.error(e);
+    } finally {
+      setGeo(null);
+      venues.refetch();
+    }
+  };
 
   const saveVenue = async () => {
     if (!editVenue) return;
@@ -202,6 +238,37 @@ export default function RouteEditor() {
         <Banner tone="info">
           Edits apply straight away. Changing points affects future completions only — anything already earned stays as it was. Use Scores to correct earned points.
         </Banner>
+      )}
+      {ordered.length > 0 && (
+        <Card className="stack-sm">
+          <div className="row-between">
+            <h2 style={{ fontSize: 'var(--fs-lg)' }}>Route map</h2>
+            <Button size="sm" variant="ghost" icon={showMap ? 'eye-off' : 'eye'} onClick={() => setShowMap(!showMap)} aria-expanded={showMap}>
+              {showMap ? 'Hide' : 'Show'}
+            </Button>
+          </div>
+          {pinned.length > 1 && (
+            <p className="small">
+              <Icon name="footprints" size={14} /> {formatDistance(distance)} in total · about {walkingMinutes(distance)} min of walking (straight-line estimate)
+            </p>
+          )}
+          {showMap && pinned.length > 0 && <RouteMap stops={stopsFromVenues(ordered)} dark={theme.dark} height={300} />}
+          {unpinned.length > 0 && (
+            <Banner
+              tone="warn"
+              icon="map-pin"
+              title={`${unpinned.length} not on the map`}
+              action={
+                <Button size="sm" loading={Boolean(geo)} onClick={findMissing}>
+                  {geo ? `${geo.done}/${geo.total}` : 'Find them'}
+                </Button>
+              }
+            >
+              {unpinned.map((v) => v.name).join(', ')}. We’ll try their maps links and addresses — or edit a venue to pick it on the map.
+            </Banner>
+          )}
+          {showMap && pinned.length > 0 && <MapCredit />}
+        </Card>
       )}
       {ordered.length === 0 ? (
         <EmptyState icon="route" title={`No ${theme.vocab.venues.toLowerCase()} yet`} action={<Button variant="primary" icon="plus" onClick={() => setQuick(true)}>Add {theme.vocab.venues.toLowerCase()}</Button>}>

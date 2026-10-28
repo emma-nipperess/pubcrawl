@@ -38,8 +38,15 @@ export default function Privacy() {
           <h2 style={{ fontSize: 'var(--fs-lg)' }}>What we don’t do</h2>
           <ul className="small" style={{ paddingLeft: 18, margin: 0 }}>
             <li>No analytics, advertising or tracking scripts. Fonts are served from this site, not a third party.</li>
-            <li>No location tracking. Directions open your own maps app.</li>
-            <li>No selling or sharing of data. The only service involved is Supabase (database, login and file storage) which hosts the data for this site.</li>
+            <li>
+              No location tracking. Directions open your own maps app. “Show me on the map” asks your browser for your position once; it stays on your
+              phone and is never sent to us or saved.
+            </li>
+            <li>
+              No selling or sharing of data. Supabase hosts the database, logins and files. When you open a route map, map images load from OpenStreetMap’s
+              tile servers (which see your IP address, like any website). When an organiser uses “Find from address”, the venue address is looked up with
+              OpenStreetMap Nominatim.
+            </li>
           </ul>
         </Card>
 

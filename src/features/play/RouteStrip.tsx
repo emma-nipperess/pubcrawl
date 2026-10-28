@@ -1,5 +1,6 @@
 import { Fragment } from 'react';
 import type { VenueProgressItem } from '@/features/venues/progress';
+import { Link } from 'react-router-dom';
 import { Icon } from '@/components/Icon';
 
 const STATE_LABEL: Record<VenueProgressItem['state'], string> = {
@@ -19,7 +20,7 @@ export function stateLabel(s: VenueProgressItem['state']) {
 }
 
 /** Compact horizontal route with a progress bar. */
-export function RouteStrip({ progress, vocab }: { progress: VenueProgressItem[]; vocab: { venues: string } }) {
+export function RouteStrip({ progress, vocab, mapHref }: { progress: VenueProgressItem[]; vocab: { venues: string }; mapHref?: string }) {
   const items = progress.filter((p) => p.state !== 'disabled');
   if (items.length === 0) return null;
   const done = items.filter((i) => !['upcoming', 'active', 'active_skipped'].includes(i.state)).length;
@@ -27,11 +28,24 @@ export function RouteStrip({ progress, vocab }: { progress: VenueProgressItem[];
     <section aria-label={`Route progress: ${done} of ${items.length} ${vocab.venues.toLowerCase()} finished`} className="stack-sm">
       <div className="row-between small">
         <strong>The route</strong>
-        <span className="muted">
-          {done}/{items.length}
+        <span className="row" style={{ gap: 10 }}>
+          <span className="muted">
+            {done}/{items.length}
+          </span>
+          {mapHref && (
+            <Link to={mapHref} className="btn btn--sm">
+              <Icon name="map-pin" size={16} /> Map
+            </Link>
+          )}
         </span>
       </div>
-      <div className="route">
+      <div className="route">{stopsList()}</div>
+    </section>
+  );
+
+  function stopsList() {
+    return (
+      <>
         {items.map((p, i) => {
           const cls =
             p.state === 'active' || p.state === 'active_skipped'
@@ -53,7 +67,7 @@ export function RouteStrip({ progress, vocab }: { progress: VenueProgressItem[];
             </Fragment>
           );
         })}
-      </div>
-    </section>
-  );
+      </>
+    );
+  }
 }

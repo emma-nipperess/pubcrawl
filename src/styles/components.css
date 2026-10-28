@@ -508,3 +508,20 @@ dialog.confirm::backdrop { background: rgba(10, 12, 12, 0.55); }
 
 /* icons inside flex rows never shrink to nothing */
 .row > svg, .row-wrap > svg, .banner > svg, .list-row > svg { flex-shrink: 0; }
+
+/* ---------- map ---------- */
+.route-map { width: 100%; border-radius: var(--r-md); border: var(--border-w) solid var(--c-line); overflow: hidden; background: var(--c-surface-2); z-index: 0; position: relative; }
+.route-map .leaflet-control-attribution { font-size: 11px; }
+.route-map.map--dark .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.6); }
+.map-stop-wrap { background: none; border: 0; }
+.map-stop {
+  display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%;
+  font: 800 15px/1 var(--font-display); color: var(--c-ink); background: var(--c-surface);
+  border: 3px solid var(--c-line); box-shadow: 2px 2px 0 rgba(0,0,0,.35);
+}
+.map-stop--done { background: var(--c-ink); color: var(--c-bg); }
+.map-stop--active { background: var(--c-accent); color: var(--c-accent-ink); transform: scale(1.18); box-shadow: 0 0 0 6px color-mix(in srgb, var(--c-accent) 35%, transparent); }
+.map-stop--skipped { border-style: dashed; color: var(--c-ink-muted); opacity: .8; }
+.map-tip { font-family: var(--font-body); font-size: 13px; }
+.leg { display: flex; align-items: center; gap: 6px; padding: 2px 0 2px 18px; font-size: var(--fs-xs); color: var(--c-ink-muted); }
+.timeline > li.leg::before { display: none; }

@@ -16,6 +16,7 @@ const Board = lazy(() => import('@/features/leaderboard/BoardPage'));
 const CardPage = lazy(() => import('@/features/play/ScorecardPage'));
 const Feed = lazy(() => import('@/features/media/FeedPage'));
 const Results = lazy(() => import('@/features/play/ResultsPage'));
+const RoutePage = lazy(() => import('@/features/map/RoutePage'));
 const AdminRoutes = lazy(() => import('@/features/admin/AdminRoutes'));
 
 export interface EventCtx {
@@ -105,6 +106,7 @@ export default function EventRoutes() {
           <Route path="card" element={<CardPage />} />
           <Route path="feed" element={<Feed />} />
           <Route path="results" element={<Results />} />
+          <Route path="route" element={<RoutePage />} />
           <Route path="admin/*" element={isOrganiser ? <AdminRoutes /> : <Navigate to=".." replace />} />
           <Route path="*" element={<Navigate to="." replace />} />
         </Routes>

@@ -111,7 +111,7 @@ export default function Dashboard() {
         </Card>
       )}
 
-      <RouteStrip progress={g.progress} vocab={theme.vocab} />
+      <RouteStrip progress={g.progress} vocab={theme.vocab} mapHref={`/e/${event.id}/route`} />
 
       <section className="grid-2" aria-label="Scores">
         <Link to="card" className="card-link">
@@ -263,6 +263,9 @@ function CurrentVenueCard({ item, remaining, total, vocab, eventId, paused }: { 
             <Icon name="navigation" /> Directions
           </a>
         )}
+        <Link className="btn btn--sm btn--ghost" style={{ color: 'inherit' }} to={`/e/${eventId}/route`}>
+          <Icon name="map-pin" /> Route map
+        </Link>
         {apple && !v.maps_url && (
           <a className="btn btn--sm btn--ghost" style={{ color: 'inherit' }} href={apple} target="_blank" rel="noopener noreferrer">
             Apple Maps
