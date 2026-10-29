@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { TopBar } from '@/components/Shell';
+import { AccountButton, TopBar } from '@/components/Shell';
+import { useFeedback } from '@/components/feedback';
 import { Badge, Button, Card, LinkButton } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { ThemeMotif } from '@/features/themes/ThemeScope';
@@ -13,7 +14,9 @@ import { FooterLinks } from './Misc';
 
 export function Landing() {
   const nav = useNavigate();
-  const { user } = useAuth();
+  const { user, loading, ensureUser } = useAuth();
+  const fb = useFeedback();
+  const [starting, setStarting] = useState(false);
   const [code, setCode] = useState('');
   const [err, setErr] = useState<string>();
   const recent = user ? getRecent() : [];
@@ -31,7 +34,7 @@ export function Landing() {
 
   return (
     <div className="app-root">
-      <TopBar right={user ? <LinkButton to="/me" variant="ghost" size="sm" icon="users">My events</LinkButton> : undefined} />
+      <TopBar right={<AccountButton />} />
       <main className="page page--no-nav stack-lg" id="main">
         <section className="hero-band landing-hero stack">
           <ThemeMotif motif="golf" />
@@ -50,6 +53,42 @@ export function Landing() {
             </LinkButton>
           </div>
         </section>
+
+        {!loading && !user && (
+          <Card as="section" className="stack" aria-labelledby="welcome-h">
+            <h2 id="welcome-h" style={{ fontSize: 'var(--fs-lg)' }}>
+              Welcome! How do you want to play?
+            </h2>
+            <LinkButton to="/signin" variant="primary" size="lg" block icon="badge-check">
+              Sign in with email
+            </LinkButton>
+            <p className="small muted" style={{ marginTop: -6 }}>
+              Best for organisers: run your crawls from your phone and laptop. No password — we email you a code.
+            </p>
+            <Button
+              size="lg"
+              block
+              icon="users"
+              loading={starting}
+              onClick={async () => {
+                setStarting(true);
+                try {
+                  await ensureUser();
+                  fb.toast('You’re in as a guest on this device', 'success');
+                } catch (e) {
+                  fb.error(e);
+                } finally {
+                  setStarting(false);
+                }
+              }}
+            >
+              Continue as guest
+            </Button>
+            <p className="small muted" style={{ marginTop: -6 }}>
+              Nothing to fill in. Saved on this browser only — you can add an email later to keep it.
+            </p>
+          </Card>
+        )}
 
         <Card as="section" aria-labelledby="join-h">
           <form className="stack" onSubmit={submit} noValidate>

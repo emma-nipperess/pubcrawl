@@ -319,6 +319,11 @@ export function JoinPage() {
             <Button type="submit" variant="primary" size="lg" block loading={joining} icon="arrow-up">
               {late ? 'Join the crawl now' : 'Join the crawl'}
             </Button>
+            {!user && (
+              <p className="small">
+                Already have an account? <Link to={`/signin?next=${encodeURIComponent(`/j/${code ?? ''}`)}`}>Sign in first</Link> to join with it.
+              </p>
+            )}
             <p className="xsmall muted">
               No account needed — we create a private guest login on this device. Use the same phone and browser to come back. You can add an email later
               to recover it on another device. <Link to="/privacy">What we store</Link>.

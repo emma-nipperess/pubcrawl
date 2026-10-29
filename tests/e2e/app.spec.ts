@@ -205,3 +205,74 @@ test('organisers can pin a venue on the free map from the wizard', async ({ page
   await expect(page.getByRole('region', { name: 'Map of the crawl route' })).toBeVisible();
   await expect(page.getByText('© OpenStreetMap', { exact: false }).first()).toBeVisible();
 });
+
+test('first visit offers sign in or continue as guest; guest is remembered', async ({ page }) => {
+  const calls: string[] = [];
+  await page.unrouteAll();
+  await stubSupabase(page, calls);
+  await page.goto(BASE);
+  await expect(page.getByRole('heading', { name: /How do you want to play/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Continue as guest' }).click();
+  await expect(page.getByRole('heading', { name: /How do you want to play/ })).toBeHidden();
+  expect(calls).toContain('POST /auth/v1/signup');
+  await expect(page.getByRole('link', { name: /Guest account/ })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: /How do you want to play/ })).toBeHidden();
+});
+
+test('signing in with an email code', async ({ page }) => {
+  const calls: string[] = [];
+  await page.unrouteAll();
+  await stubSupabase(page, calls);
+  await page.route(`${SUPA}/auth/v1/otp*`, (r) => {
+    calls.push('POST /auth/v1/otp');
+    return r.fulfill({ contentType: 'application/json', body: '{}' });
+  });
+  await page.route(`${SUPA}/auth/v1/verify*`, (r) => {
+    calls.push(`verify ${JSON.stringify(r.request().postDataJSON())}`);
+    return r.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ access_token: fakeJwt(), refresh_token: 'r', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, token_type: 'bearer', user: { id: '44444444-4444-4444-8444-444444444444', email: 'sam@example.com', aud: 'authenticated', role: 'authenticated', is_anonymous: false, app_metadata: {}, user_metadata: {}, created_at: new Date().toISOString() } }),
+    });
+  });
+  await page.goto(BASE);
+  await page.getByRole('link', { name: 'Sign in with email' }).click();
+  await page.getByLabel('Email').fill('sam@example.com');
+  await page.getByRole('button', { name: 'Email me a code' }).click();
+  await expect(page.getByText(/We sent a code to sam@example.com/)).toBeVisible();
+  await page.getByLabel('Code from the email').fill('123456');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page).toHaveURL(/\/pub-crawl\/?$/);
+  await expect(page.getByRole('link', { name: /Signed in as sam@example.com/ })).toBeVisible();
+  expect(calls).toContain('POST /auth/v1/otp');
+  expect(calls.some((c) => c.includes('"type":"email"') && c.includes('123456'))).toBe(true);
+});
+
+test('a guest can save their account with email (same account, nothing lost)', async ({ page }) => {
+  const calls: string[] = [];
+  await page.unrouteAll();
+  await stubSupabase(page, calls);
+  await page.route(`${SUPA}/auth/v1/user*`, (r) => {
+    calls.push(`${r.request().method()} /auth/v1/user`);
+    return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ id: '22222222-2222-4222-8222-222222222222', aud: 'authenticated', role: 'authenticated', is_anonymous: true, new_email: 'sam@example.com', app_metadata: {}, user_metadata: {}, created_at: new Date().toISOString() }) });
+  });
+  await page.route(`${SUPA}/auth/v1/verify*`, (r) => {
+    calls.push(`verify ${JSON.stringify(r.request().postDataJSON())}`);
+    return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ access_token: fakeJwt(), refresh_token: 'r', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, token_type: 'bearer', user: { id: '22222222-2222-4222-8222-222222222222', email: 'sam@example.com', aud: 'authenticated', role: 'authenticated', is_anonymous: false, app_metadata: {}, user_metadata: {}, created_at: new Date().toISOString() } }) });
+  });
+  await page.goto(BASE);
+  await page.getByRole('button', { name: 'Continue as guest' }).click();
+  await page.getByRole('link', { name: /Guest account/ }).click();
+  await page.getByRole('link', { name: 'Save my account with email' }).click();
+  await expect(page.getByRole('heading', { name: 'Save your account' })).toBeVisible();
+  await page.getByLabel('Email').fill('sam@example.com');
+  await page.getByRole('button', { name: 'Email me a code' }).click();
+  await page.getByLabel('Code from the email').fill('654321');
+  await page.getByRole('button', { name: 'Save account' }).click();
+  await expect(page).toHaveURL(`${BASE}me`);
+  expect(calls).toContain('PUT /auth/v1/user');
+  expect(calls.some((c) => c.includes('"type":"email_change"'))).toBe(true);
+  // signing out is available and asks first
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page.getByRole('heading', { name: 'Sign out on this device?' })).toBeVisible();
+});

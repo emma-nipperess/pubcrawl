@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { Icon } from './Icon';
 import { Button } from './ui';
 import type { LiveStatus } from '@/lib/supabase/realtime';
+import { useAuth } from '@/lib/auth';
 
 export function Logo({ small }: { small?: boolean }) {
   return (
@@ -33,6 +34,25 @@ export function TopBar({ title, back, right, wide }: { title?: ReactNode; back?:
         {right}
       </div>
     </header>
+  );
+}
+
+/** Header account button: who you are on this device, and the way to sign in / out. */
+export function AccountButton() {
+  const { user, isAnonymous, loading } = useAuth();
+  if (loading) return null;
+  if (!user)
+    return (
+      <Link to="/signin" className="btn btn--sm">
+        <Icon name="user-plus" size={16} /> Sign in
+      </Link>
+    );
+  const label = isAnonymous ? 'Guest' : (user.email ?? 'Account').split('@')[0];
+  return (
+    <Link to="/me" className="btn btn--sm" aria-label={isAnonymous ? 'Guest account — my events and sign in' : `Signed in as ${user.email} — my events`}>
+      <Icon name={isAnonymous ? 'users' : 'badge-check'} size={16} />
+      <span className="truncate" style={{ maxWidth: 110 }}>{label}</span>
+    </Link>
   );
 }
 

@@ -14,6 +14,7 @@ import { ScrollToTop } from './ScrollToTop';
 const CreateWizard = lazy(() => import('@/features/events/CreateWizard'));
 const MyPage = lazy(() => import('./pages/MyPage'));
 const Privacy = lazy(() => import('./pages/Privacy'));
+const SignIn = lazy(() => import('./pages/SignIn'));
 const EventRoutes = lazy(() => import('./EventRoutes'));
 
 const queryClient = new QueryClient({
@@ -57,6 +58,7 @@ export function App() {
                 <Route path="/new" element={<CreateWizard />} />
                 <Route path="/me" element={<MyPage />} />
                 <Route path="/privacy" element={<Privacy />} />
+                <Route path="/signin" element={<SignIn />} />
                 <Route path="/e/:eventId/*" element={<EventRoutes />} />
                 <Route path="/index.html" element={<Navigate to="/" replace />} />
                 <Route path="*" element={<NotFound />} />

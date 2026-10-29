@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { TopBar } from '@/components/Shell';
-import { Badge, Banner, Button, Card, EmptyState, ErrorState, LinkButton, LoadingBlock, TextInput } from '@/components/ui';
+import { Badge, Banner, Button, Card, EmptyState, ErrorState, LinkButton, LoadingBlock } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { useFeedback } from '@/components/feedback';
 import { useAuth } from '@/lib/auth';
@@ -117,52 +117,21 @@ export default function MyPage() {
 }
 
 function SignInCard() {
-  const { sendEmailCode, verifyEmailCode } = useAuth();
-  const fb = useFeedback();
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [sent, setSent] = useState(false);
-  const [busy, setBusy] = useState(false);
   return (
     <Card className="stack-sm">
       <h2 style={{ fontSize: 'var(--fs-lg)' }}>Sign in with email</h2>
-      <p className="small muted">Only works if you linked this email earlier. We send a one-time code — no password.</p>
-      <form
-        className="stack-sm"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          setBusy(true);
-          try {
-            if (!sent) {
-              await sendEmailCode(email.trim());
-              setSent(true);
-              fb.toast('Check your email for a code or link');
-            } else {
-              await verifyEmailCode(email.trim(), code.trim());
-              fb.toast('Signed in', 'success');
-            }
-          } catch (ex) {
-            fb.error(ex);
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
-        <TextInput label="Email" type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={sent} required />
-        {sent && <TextInput label="Code from the email" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} maxLength={10} />}
-        <Button type="submit" loading={busy} disabled={!email.includes('@')}>
-          {sent ? 'Sign in' : 'Email me a code'}
-        </Button>
-      </form>
+      <p className="small muted">See the crawls you organise or joined with your email, on any device. We send a one-time code — no password.</p>
+      <LinkButton to="/signin?next=/me" variant="primary" icon="badge-check">
+        Sign in
+      </LinkButton>
     </Card>
   );
 }
 
 function AccountCard({ isAnonymous }: { isAnonymous: boolean }) {
-  const { user, linkEmail, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const fb = useFeedback();
   const nav = useNavigate();
-  const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   return (
     <Card className="stack-sm">
@@ -172,32 +141,14 @@ function AccountCard({ isAnonymous }: { isAnonymous: boolean }) {
           <Banner tone="info" title="Guest login on this device">
             Your events are tied to this browser. If you clear its data or switch phones, you can’t get back in — unless you add an email.
           </Banner>
-          <form
-            className="row"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              setBusy(true);
-              try {
-                await linkEmail(email.trim());
-                fb.toast('Check your inbox to confirm the email', 'success');
-              } catch (ex) {
-                fb.error(ex);
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            <div className="grow">
-              <TextInput label="Add an email for recovery (optional)" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} hint="Never shown to other players." />
-            </div>
-            <Button type="submit" loading={busy} disabled={!email.includes('@')} style={{ alignSelf: 'center' }}>
-              Add
-            </Button>
-          </form>
+          <LinkButton to="/signin?next=/me" variant="primary" icon="badge-check">
+            Save my account with email
+          </LinkButton>
+          <p className="xsmall muted">Keeps everything on this device and lets you sign in on your phone. Already have an account? Sign in from the same screen.</p>
         </>
       ) : (
         <p className="small">
-          Signed in{user?.email ? ` as ${user.email}` : ''}. <Badge tone="success">Recoverable</Badge>
+          Signed in as <strong>{user?.email}</strong> <Badge tone="success">Works on any device</Badge>
         </p>
       )}
       <div className="row-wrap">

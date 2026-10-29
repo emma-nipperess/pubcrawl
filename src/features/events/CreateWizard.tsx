@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { TopBar } from '@/components/Shell';
-import { Badge, Banner, Button, Card, EmptyState, Sheet, TextArea } from '@/components/ui';
+import { Badge, Banner, Button, Card, EmptyState, LinkButton, Sheet, TextArea } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { useFeedback } from '@/components/feedback';
 import { SortableList, arrayMove } from '@/components/Sortable';
@@ -220,6 +220,16 @@ export default function CreateWizard() {
           ))}
         </div>
 
+        {s.step === 0 && !user?.email && (
+          <Banner
+            tone="info"
+            icon="badge-check"
+            title={user ? 'You’re a guest on this device' : 'Not signed in'}
+            action={<LinkButton to="/signin?next=/new" size="sm">{user ? 'Save account' : 'Sign in'}</LinkButton>}
+          >
+            Sign in with email to run this crawl from your phone too. Otherwise you can only manage it from this browser.
+          </Banner>
+        )}
         {s.step === 0 && (
           <section className="stack">
             <h1>Pick a vibe</h1>

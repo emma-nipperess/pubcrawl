@@ -15,6 +15,8 @@ interface AuthState {
   verifyEmailCode: (email: string, token: string) => Promise<void>;
   /** Attach an email to the current (guest) account so it can be recovered on another device. */
   linkEmail: (email: string) => Promise<void>;
+  /** Confirm the code sent by linkEmail. Keeps the same account (and all its events). */
+  verifyLinkCode: (email: string, token: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -69,6 +71,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   }, []);
 
+  const verifyLinkCode = useCallback(async (email: string, token: string) => {
+    const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email_change' });
+    if (error) throw error;
+  }, []);
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     clearRecent();
@@ -90,9 +97,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sendEmailCode,
       verifyEmailCode,
       linkEmail,
+      verifyLinkCode,
       signOut,
     }),
-    [session, loading, ensureUser, sendEmailCode, verifyEmailCode, linkEmail, signOut],
+    [session, loading, ensureUser, sendEmailCode, verifyEmailCode, linkEmail, verifyLinkCode, signOut],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
