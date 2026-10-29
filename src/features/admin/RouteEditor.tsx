@@ -32,6 +32,7 @@ function venueToDraft(v: VenueRow, notes?: string): VenueDraft {
     duration_minutes: v.duration_minutes,
     accent_color: v.accent_color,
     par: v.par,
+    drink: v.drink,
     bonus_points: v.bonus_points,
     time_limit_minutes: v.time_limit_minutes,
     organiser_notes: notes ?? '',
@@ -125,6 +126,7 @@ export default function RouteEditor() {
         arrive_at: patch.arrive_at || null,
         depart_at: patch.depart_at || null,
         bonus_points: patch.bonus_points ?? 0,
+        drink: patch.drink?.trim() || null,
       });
       const { error } = await supabase.from('venue_organiser_notes').upsert({ venue_id: editVenue.id, event_id: event.id, notes: organiser_notes ?? '' });
       if (error) throw error;
@@ -302,7 +304,9 @@ export default function RouteEditor() {
                     {v.disabled && <Badge tone="warn" icon="eye-off">Disabled</Badge>}
                     {v.bonus_points > 0 && <Badge tone="brass">+{v.bonus_points} sweep</Badge>}
                     {notes.data?.[v.id] && <Badge icon="lock">Notes</Badge>}
+                    {event.game_mode === 'golf' && <Badge icon="flag">Par {v.par ?? event.golf_default_par}</Badge>}
                   </div>
+                  {event.game_mode === 'golf' && v.drink && <p className="xsmall truncate">{v.drink}</p>}
                   {v.address && <p className="xsmall muted truncate">{v.address}</p>}
                 </div>
               </div>
@@ -366,7 +370,7 @@ export default function RouteEditor() {
       <Sheet open={Boolean(editVenue)} onClose={() => setEditVenue(null)} title={`Edit ${theme.vocab.venue.toLowerCase()}`}>
         {editVenue && (
           <div className="stack">
-            <VenueForm value={editVenue.draft} theme={theme} errors={errs} onChange={(d) => setEditVenue({ ...editVenue, draft: d })} />
+            <VenueForm value={editVenue.draft} theme={theme} golf={event.game_mode === 'golf'} defaultPar={event.golf_default_par} errors={errs} onChange={(d) => setEditVenue({ ...editVenue, draft: d })} />
             <Button variant="primary" block loading={busy === 'venue'} onClick={saveVenue}>
               Save
             </Button>

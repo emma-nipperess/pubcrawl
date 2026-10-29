@@ -13,6 +13,10 @@ export interface BoardRow {
   tied: boolean;
   mine: boolean;
   sub?: string;
+  /** Overrides the big number (e.g. golf “−2”). */
+  display?: string;
+  /** Overrides the small line under the number. */
+  note?: string;
 }
 
 export function LeaderboardList({ rows, moves, unit, provisional }: { rows: BoardRow[]; moves?: Map<string, Movement>; unit: string; provisional: boolean }) {
@@ -22,8 +26,8 @@ export function LeaderboardList({ rows, moves, unit, provisional }: { rows: Boar
         const m = moves?.get(r.id);
         return (
           <li key={r.id} className={['list-row', r.mine && 'list-row--me'].filter(Boolean).join(' ')} aria-current={r.mine ? 'true' : undefined}>
-            <span className={`rank ${r.rank === 1 ? 'rank--1' : ''}`} aria-label={`${r.tied ? 'Tied ' : ''}${r.rank}${r.rank === 1 ? 'st' : r.rank === 2 ? 'nd' : r.rank === 3 ? 'rd' : 'th'} place`}>
-              {rankLabel(r.rank, r.tied)}
+            <span className={`rank ${r.rank === 1 ? 'rank--1' : ''}`} aria-label={r.rank > 0 ? `${r.tied ? 'Tied ' : ''}${r.rank}${r.rank === 1 ? 'st' : r.rank === 2 ? 'nd' : r.rank === 3 ? 'rd' : 'th'} place` : 'Not ranked yet'}>
+              {r.rank > 0 ? rankLabel(r.rank, r.tied) : '–'}
             </span>
             <span className="avatar avatar--sm" style={{ background: r.color }} aria-hidden="true">
               <Icon name={r.icon} size={15} />
@@ -47,10 +51,10 @@ export function LeaderboardList({ rows, moves, unit, provisional }: { rows: Boar
             )}
             <span className="center" style={{ minWidth: 56 }}>
               <span className="score-big" style={{ fontSize: 'var(--fs-lg)' }}>
-                {r.score}
+                {r.display ?? r.score}
               </span>
               <span className="xsmall muted" style={{ display: 'block' }}>
-                {r.pending > 0 ? (provisional ? `incl. ${r.pending} provisional` : `+${r.pending} pending`) : unit}
+                {r.note ?? (r.pending > 0 ? (provisional ? `incl. ${r.pending} provisional` : `+${r.pending} pending`) : unit)}
               </span>
             </span>
           </li>

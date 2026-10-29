@@ -16,6 +16,8 @@ import type {
   MemberAchievementRow,
   MemberRow,
   ParticipationRow,
+  GolfBoard,
+  GolfScoreRow,
   SubmissionRow,
   TeamMemberRow,
   TeamRow,
@@ -243,6 +245,22 @@ export function useLeaderboard(eventId: string | undefined, venueId?: string | n
     queryKey: keys.leaderboard(eventId ?? '', venueId),
     enabled: Boolean(eventId),
     queryFn: () => rpc<Leaderboard>('get_leaderboard', { p_event_id: eventId, p_venue_id: venueId ?? null }),
+  });
+}
+
+export function useGolfScores(eventId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ['golf', eventId ?? ''],
+    enabled: Boolean(eventId) && enabled,
+    queryFn: async () => unwrap<GolfScoreRow[]>(await supabase.from('golf_scores').select('*').eq('event_id', eventId!).limit(5000)),
+  });
+}
+
+export function useGolfBoard(eventId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ['leaderboard', eventId ?? '', 'golf'],
+    enabled: Boolean(eventId) && enabled,
+    queryFn: () => rpc<GolfBoard>('get_golf_leaderboard', { p_event_id: eventId }),
   });
 }
 

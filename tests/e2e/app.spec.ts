@@ -158,7 +158,7 @@ test('typing a code on the landing page navigates to the join screen', async ({ 
 
 test('create wizard deep link works and theme changes the look', async ({ page }) => {
   await page.goto(`${BASE}new`);
-  await expect(page.getByRole('heading', { name: 'Pick a vibe' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'What are you playing?' })).toBeVisible();
   const before = await page.locator('.app-root').first().evaluate((e) => getComputedStyle(e).backgroundColor);
   await page.getByText('Halloween', { exact: true }).click();
   await expect(page.locator('[data-theme="halloween"]').first()).toBeVisible();
@@ -275,4 +275,22 @@ test('a guest can save their account with email (same account, nothing lost)', a
   // signing out is available and asks first
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page.getByRole('heading', { name: 'Sign out on this device?' })).toBeVisible();
+});
+
+test('the wizard offers pub crawl or pub golf, and golf gives holes a drink and par', async ({ page }) => {
+  await page.goto(`${BASE}new`);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'What are you playing?' })).toBeVisible();
+  await page.getByText('Pub golf', { exact: true }).click();
+  await expect(page.getByText(/Fewest strokes wins/)).toBeVisible();
+  await expect(page.getByLabel('Max over par')).toHaveValue('3');
+  await page.getByRole('button', { name: /Next: Details/ }).click();
+  await page.getByLabel('Event name').fill('Golf Night');
+  await page.getByLabel('Your name (organiser)').fill('Sam');
+  await page.getByRole('button', { name: /Next: Route/ }).click();
+  await expect(page.getByText(/Par 4 · Pint of anything/).first()).toBeVisible();
+  await page.locator('strong', { hasText: 'Hole 1 — The Clubhouse' }).click();
+  await expect(page.getByLabel('Drink for this hole')).toHaveValue(/Pint of anything/);
+  await expect(page.getByLabel('Par (strokes)')).toHaveValue('4');
 });

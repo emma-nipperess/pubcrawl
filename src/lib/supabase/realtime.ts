@@ -18,6 +18,7 @@ const TABLE_KEYS: Record<string, string[]> = {
   score_ledger: ['leaderboard', 'ledger'],
   event_announcements: ['announcements'],
   member_achievements: ['achievements'],
+  golf_scores: ['golf', 'leaderboard'],
 };
 
 /**

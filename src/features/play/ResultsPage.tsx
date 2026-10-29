@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
 import { PlayerShell } from './PlayerShell';
 import { useEventCtx } from '@/app/EventRoutes';
-import { useAchievements, useFeed, useLeaderboard, useMembers } from '@/lib/supabase/queries';
+import { useAchievements, useFeed, useGolfBoard, useLeaderboard, useMembers } from '@/lib/supabase/queries';
+import { formatToPar } from '@/features/golf/golf';
+import { golfPersonRow, golfTeamRow } from '@/features/golf/golfRows';
 import { Card, EmptyState, ErrorState, LoadingBlock } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { ThemeMotif } from '@/features/themes/ThemeScope';
@@ -11,13 +13,15 @@ import { rankLabel } from '@/features/leaderboard/rank';
 
 export default function ResultsPage() {
   const { event, theme } = useEventCtx();
+  const golf = event.game_mode === 'golf';
   const board = useLeaderboard(event.id);
+  const golfBoard = useGolfBoard(event.id, golf);
   const ach = useAchievements(event.id);
   const members = useMembers(event.id);
   const feed = useFeed(event.id);
   const nameOf = (id: string) => members.data?.find((m) => m.id === id)?.display_name ?? 'Someone';
 
-  if (board.isLoading)
+  if (board.isLoading || (golf && golfBoard.isLoading))
     return (
       <PlayerShell>
         <LoadingBlock />
@@ -31,8 +35,13 @@ export default function ResultsPage() {
     );
 
   const b = board.data;
-  const winners = (b.teams.length ? b.teams : b.individuals).filter((r) => r.rank === 1);
-  const me = b.individuals.find((r) => r.is_me);
+  const gb = golf ? golfBoard.data : undefined;
+  const golfWinners = gb ? (gb.teams.some((t) => t.rank === 1) ? gb.teams.map(golfTeamRow) : gb.individuals.map(golfPersonRow)).filter((r) => r.rank === 1) : [];
+  const winners = golf
+    ? golfWinners.map((w) => ({ name: w.name, score: w.display ?? '' }))
+    : (b.teams.length ? b.teams : b.individuals).filter((r) => r.rank === 1).map((w) => ({ name: w.name, score: `${w.score} ${theme.vocab.points}` }));
+  const meCrawl = b.individuals.find((r) => r.is_me);
+  const meGolf = gb?.individuals.find((r) => r.is_me);
   const highlights = (feed.data?.pages[0]?.rows ?? []).filter((s) => s.submission_media.length).slice(0, 6);
   const defs = new Map((ach.data?.defs ?? []).map((d) => [d.id, d]));
 
@@ -44,33 +53,49 @@ export default function ResultsPage() {
         <h1 className="deco-title" style={{ fontSize: 'var(--fs-3xl)' }}>
           {event.name}
         </h1>
-        {b.visible && winners.length > 0 ? (
+        {(golf ? gb?.visible : b.visible) && winners.length > 0 ? (
           <div className="stack-sm">
             <span className="mat" style={{ width: 120, margin: '0 auto', background: 'var(--c-accent-2)', color: 'var(--c-accent-2-ink)' }}>
               <Icon name="trophy" size={48} />
             </span>
             <p className="small">{winners.length > 1 ? 'Joint winners' : 'Winner'}</p>
             <h2 className="deco-title">{winners.map((w) => w.name).join(' & ')}</h2>
-            <p className="score-big">
-              {winners[0].score} {theme.vocab.points}
-            </p>
+            <p className="score-big">{winners[0].score}</p>
           </div>
         ) : (
           <p>Thanks for playing!</p>
         )}
-        {me && (
+        {!golf && meCrawl && (
           <p className="small">
-            You finished <strong>{rankLabel(me.rank, me.tied)}</strong> with <strong>{me.score}</strong> {theme.vocab.points}.
+            You finished <strong>{rankLabel(meCrawl.rank, meCrawl.tied)}</strong> with <strong>{meCrawl.score}</strong> {theme.vocab.points}.
+          </p>
+        )}
+        {golf && meGolf?.rank && (
+          <p className="small">
+            You finished <strong>{rankLabel(meGolf.rank, meGolf.tied)}</strong> at <strong>{formatToPar(meGolf.to_par)}</strong> ({meGolf.strokes} strokes over {meGolf.thru} holes).
           </p>
         )}
       </section>
 
-      {b.teams.length > 0 && (
+      {gb && gb.teams.length > 0 && (
+        <section className="stack-sm">
+          <h2 className="section-title">{theme.vocab.team} rankings</h2>
+          <LeaderboardList rows={gb.teams.map(golfTeamRow)} unit="to par" provisional={false} />
+        </section>
+      )}
+      {gb && (
+        <section className="stack-sm">
+          <h2 className="section-title">Players</h2>
+          <LeaderboardList rows={gb.individuals.map(golfPersonRow)} unit="to par" provisional={false} />
+        </section>
+      )}
+      {!golf && b.teams.length > 0 && (
         <section className="stack-sm">
           <h2 className="section-title">{theme.vocab.team} rankings</h2>
           <LeaderboardList rows={b.teams.map((t) => ({ id: t.team_id, name: t.name, color: t.color, icon: t.icon, score: t.score, confirmed: t.confirmed, pending: t.pending, rank: t.rank, tied: t.tied, mine: t.is_mine }))} unit={theme.vocab.points} provisional={b.provisional_scoring} />
         </section>
       )}
+      {!golf && (
       <section className="stack-sm">
         <h2 className="section-title">Players</h2>
         {b.individuals.length === 0 ? (
@@ -79,6 +104,7 @@ export default function ResultsPage() {
           <LeaderboardList rows={b.individuals.map((p) => ({ id: p.member_id, name: p.name, color: p.avatar_color, icon: p.avatar_icon, score: p.score, confirmed: p.confirmed, pending: p.pending, rank: p.rank, tied: p.tied, mine: p.is_me }))} unit={theme.vocab.points} provisional={b.provisional_scoring} />
         )}
       </section>
+      )}
 
       {(ach.data?.awards.length ?? 0) > 0 && (
         <section className="stack-sm">

@@ -35,7 +35,7 @@ function jwt() {
   return `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: UID, role: 'authenticated', exp: Math.floor(Date.now() / 1000) + 3600, is_anonymous: true })}.sig`;
 }
 
-async function setup(page: Page) {
+async function setup(page: Page, overrides: Record<string, unknown> = {}, extra: (table: string) => unknown = () => undefined) {
   await page.route('https://tile.openstreetmap.org/**', (r) => r.fulfill({ contentType: 'image/png', body: PNG }));
   await page.route(`${SUPA}/**`, (route) => {
     const req = route.request();
@@ -44,7 +44,9 @@ async function setup(page: Page) {
     const send = (rows: unknown[]) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(one ? rows[0] ?? null : rows) });
     const table = url.pathname.replace('/rest/v1/', '');
     if (table === 'rpc/get_leaderboard') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ visible: true, provisional_scoring: false, tie_break: 'shared', individuals: [], teams: [] }) });
-    if (table === 'events') return send([event]);
+    const x = extra(table);
+    if (x !== undefined) return route.fulfill({ contentType: 'application/json', body: JSON.stringify(x) });
+    if (table === 'events') return send([{ ...event, ...overrides }]);
     if (table === 'event_members') return send([member]);
     if (table === 'venues') return send(venues);
     if (url.pathname.startsWith('/auth/')) return route.fulfill({ contentType: 'application/json', body: '{}' });
@@ -88,4 +90,40 @@ test('the map still renders after a refresh on the route page', async ({ page })
   await expectTiles(page, 'Map of the crawl route');
   await page.reload();
   await expectTiles(page, 'Map of the crawl route');
+});
+
+test('pub golf: Home shows to-par, the hole shows its drink and a stroke counter', async ({ page }) => {
+  const board = {
+    visible: true, provisional_scoring: false, tie_break: 'shared', max_over: 3, teams: [],
+    individuals: [
+      { member_id: MEMBER, name: 'Alex', avatar_color: '#2A9D8F', avatar_icon: 'star', team_id: null, strokes: 3, par: 4, thru: 1, adjustment: 0, pending: 0, to_par: -1, rank: 1, tied: false, is_me: true },
+      { member_id: 'x', name: 'Sam', avatar_color: '#F4A261', avatar_icon: 'rocket', team_id: null, strokes: 6, par: 4, thru: 1, adjustment: 0, pending: 0, to_par: 2, rank: 2, tied: false, is_me: false },
+    ],
+  };
+  let recorded: unknown = null;
+  await setup(page, { game_mode: 'golf' }, (table) => {
+    if (table === 'rpc/get_golf_leaderboard') return board;
+    if (table === 'venues') return venues.map((v) => ({ ...v, par: v.position === 1 ? 4 : null, drink: v.position === 1 ? 'Pint or a soft drink' : null }));
+    return undefined;
+  });
+  await page.route(`${SUPA}/rest/v1/rpc/record_golf_score`, (r) => {
+    recorded = r.request().postDataJSON();
+    return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ id: 'g', venue_id: 'v2', member_id: MEMBER, strokes: 3 }) });
+  });
+  await page.goto(`${BASE}e/${EVENT}`);
+  await expect(page.getByText('Par 4 · Pint or a soft drink')).toBeVisible();
+  await expect(page.getByText('−1', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/Thru 1 · 3 strokes/)).toBeVisible();
+  await page.getByRole('link', { name: /Score this hole/ }).click();
+  await expect(page.getByRole('heading', { name: 'Your score' })).toBeVisible();
+  await expect(page.getByText('Pint or a soft drink')).toBeVisible();
+  await expect(page.getByText(/Any drink counts/)).toBeVisible();
+  // starts at par (4); one fewer = birdie
+  await page.getByRole('button', { name: 'One fewer stroke' }).click();
+  await expect(page.getByText('Birdie')).toBeVisible();
+  await page.getByRole('button', { name: 'Save score' }).click();
+  await expect.poll(() => recorded).toEqual({ p_venue_id: 'v2', p_strokes: 3 });
+  await page.goto(`${BASE}e/${EVENT}/board`);
+  await expect(page.getByText('Lowest score wins', { exact: false })).toBeVisible();
+  await expect(page.getByText('+2', { exact: true })).toBeVisible();
 });

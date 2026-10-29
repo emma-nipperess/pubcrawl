@@ -7,7 +7,7 @@ import { useEventCtx } from '@/app/EventRoutes';
 import { db, rpc, useChallenges, useAnswers, useVenues, useVenueNotes, useTeams } from '@/lib/supabase/queries';
 import { supabase } from '@/lib/supabase/client';
 import { Banner, Button, Card, TextInput } from '@/components/ui';
-import { CustomThemeFields, DetailsFields, RulesFields, ThemePicker, type EventForm } from '@/features/events/EventSettingsForm';
+import { CustomThemeFields, DetailsFields, GameModeFields, RulesFields, ThemePicker, type EventForm } from '@/features/events/EventSettingsForm';
 import { getTheme } from '@/features/themes/themes';
 import { hasErrors, validateEvent } from '@/lib/validation/forms';
 import { useAuth } from '@/lib/auth';
@@ -22,6 +22,7 @@ const EDITABLE: (keyof EventForm)[] = [
   'organiser_name', 'capacity', 'visibility', 'require_code', 'allow_late_join', 'join_open', 'play_mode', 'team_selection', 'allow_self_teams',
   'team_max_size', 'teams_locked', 'allow_skip', 'skip_policy', 'skip_penalty', 'allow_any_venue', 'challenges_visible_early',
   'default_requires_approval', 'show_others_submissions', 'leaderboard_visible', 'provisional_scoring', 'allow_partial_points', 'tie_break', 'media_retention_days',
+  'game_mode', 'golf_default_par', 'golf_max_over',
 ];
 
 export default function SettingsPage() {
@@ -93,7 +94,7 @@ export default function SettingsPage() {
         venues: (venues.data ?? []).map((v) => ({
           name: v.name, address: v.address, maps_url: v.maps_url, latitude: v.latitude, longitude: v.longitude, description: v.description,
           meeting_instructions: v.meeting_instructions, arrive_at: v.arrive_at, depart_at: v.depart_at, duration_minutes: v.duration_minutes,
-          accent_color: v.accent_color, par: v.par, bonus_points: v.bonus_points, time_limit_minutes: v.time_limit_minutes, organiser_notes: notes.data?.[v.id] ?? null,
+          accent_color: v.accent_color, par: v.par, drink: v.drink, bonus_points: v.bonus_points, time_limit_minutes: v.time_limit_minutes, organiser_notes: notes.data?.[v.id] ?? null,
           challenges: (challenges.data ?? [])
             .filter((c) => c.venue_id === v.id && !c.archived)
             .map((c) => {
@@ -151,6 +152,10 @@ export default function SettingsPage() {
       <h1 className="deco-title">Settings</h1>
       {locked && <Banner tone="info">This event is archived and read-only.</Banner>}
       <fieldset disabled={locked} className="stack-lg">
+        <Card className="stack">
+          <h2 style={{ fontSize: 'var(--fs-lg)' }}>Game type</h2>
+          <GameModeFields value={form} onChange={setForm} started={event.status !== 'draft' && event.status !== 'published'} />
+        </Card>
         <Card className="stack">
           <h2 style={{ fontSize: 'var(--fs-lg)' }}>Details</h2>
           <DetailsFields value={form} onChange={setForm} errors={errors} />

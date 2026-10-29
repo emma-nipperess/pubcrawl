@@ -4,7 +4,9 @@ import { useGame } from './useGame';
 import { Avatar, Banner, Card, EmptyState, ErrorState, LinkButton, LoadingBlock } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { ThemeMotif } from '@/features/themes/ThemeScope';
-import { useAchievements, useAnnouncements, useLeaderboard, useMembers } from '@/lib/supabase/queries';
+import { useAchievements, useAnnouncements, useGolfBoard, useLeaderboard, useMembers } from '@/lib/supabase/queries';
+import { formatToPar, holePar } from '@/features/golf/golf';
+import { golfPersonRow, golfTeamRow } from '@/features/golf/golfRows';
 import { appleMapsUrl, directionsUrl, type VenueProgressItem } from '@/features/venues/progress';
 import { formatEventWhen, formatTime, timeAgo } from '@/lib/format';
 import { rankLabel } from '@/features/leaderboard/rank';
@@ -20,7 +22,9 @@ import { useMemo } from 'react';
 export default function Dashboard() {
   const g = useGame();
   const { event, theme, member, myTeam } = g;
+  const golf = event.game_mode === 'golf';
   const board = useLeaderboard(event.id);
+  const golfBoard = useGolfBoard(event.id, golf);
   const ann = useAnnouncements(event.id);
   const ach = useAchievements(event.id);
   const members = useMembers(event.id);
@@ -43,6 +47,8 @@ export default function Dashboard() {
   const current = g.summary.current;
   const me = board.data?.individuals.find((r) => r.is_me);
   const myTeamRow = board.data?.teams.find((t) => t.is_mine);
+  const gMe = golfBoard.data?.individuals.find((r) => r.is_me);
+  const gTeam = golfBoard.data?.teams.find((t) => t.is_mine);
   const currentChallenges = current ? (g.challenges.data ?? []).filter((c) => c.venue_id === current.venue.id) : [];
   const remaining = currentChallenges.filter((c) => {
     const st = challengeState(c, g.mySubs, g.teamSubs).state;
@@ -105,7 +111,15 @@ export default function Dashboard() {
       )}
 
       {current && (
-        <CurrentVenueCard item={current} remaining={remaining.length} total={currentChallenges.length} vocab={theme.vocab} eventId={event.id} paused={event.status === 'paused'} />
+        <CurrentVenueCard
+          item={current}
+          remaining={remaining.length}
+          total={currentChallenges.length}
+          vocab={theme.vocab}
+          eventId={event.id}
+          paused={event.status === 'paused'}
+          golfLine={golf ? `Par ${holePar(current.venue.par, event.golf_default_par)}${current.venue.drink ? ` · ${current.venue.drink}` : ''}` : undefined}
+        />
       )}
       {event.status === 'in_progress' && !current && (
         <Card className="card--muted">
@@ -118,6 +132,64 @@ export default function Dashboard() {
       <HomeMap />
       <RouteStrip progress={g.progress} vocab={theme.vocab} mapHref={`/e/${event.id}/route`} />
 
+      {golf && (
+        <section className="grid-2" aria-label="Scores">
+          <Link to="card" className="card-link">
+            <Card className="stack-sm">
+              <span className="eyebrow">You</span>
+              <span className="score-big">{formatToPar(gMe?.to_par)}</span>
+              <span className="small muted">
+                {gMe?.thru ? `Thru ${gMe.thru} · ${gMe.strokes} strokes` : 'Yet to tee off'}
+                {gMe?.rank ? ` · ${rankLabel(gMe.rank, gMe.tied)}` : ''}
+              </span>
+            </Card>
+          </Link>
+          {myTeam ? (
+            <Link to="board" className="card-link">
+              <Card className="stack-sm" style={{ borderColor: myTeam.color }}>
+                <span className="eyebrow">{myTeam.name}</span>
+                <span className="score-big">{formatToPar(gTeam?.to_par == null ? null : Number(gTeam.to_par))}</span>
+                <span className="small muted">{gTeam?.rank ? `${rankLabel(gTeam.rank, gTeam.tied)} · average` : 'Team average'}</span>
+              </Card>
+            </Link>
+          ) : (
+            <Link to="board" className="card-link">
+              <Card className="stack-sm">
+                <span className="eyebrow">Course</span>
+                <span className="score-big">{g.summary.percent}%</span>
+                <span className="small muted">
+                  {g.summary.finished} of {g.summary.total} holes
+                </span>
+              </Card>
+            </Link>
+          )}
+        </section>
+      )}
+      {golf && golfBoard.data?.visible && golfBoard.data.individuals.some((r) => r.rank) && (
+        <section className="stack-sm" aria-labelledby="gtop-h">
+          <h2 id="gtop-h" className="section-title">
+            {theme.vocab.leaderboard}
+            <Link to="board" className="small">
+              See all
+            </Link>
+          </h2>
+          <ol className="list">
+            {(golfBoard.data.teams.some((t) => t.rank) ? golfBoard.data.teams.map(golfTeamRow) : golfBoard.data.individuals.map(golfPersonRow))
+              .filter((r) => r.rank > 0)
+              .slice(0, 3)
+              .map((r) => (
+                <li key={r.id} className={['list-row', r.mine ? 'list-row--me' : ''].join(' ')}>
+                  <span className={`rank ${r.rank === 1 ? 'rank--1' : ''}`}>{rankLabel(r.rank, r.tied)}</span>
+                  <strong className="grow truncate">{r.name}</strong>
+                  <span className="num" style={{ fontWeight: 800 }}>
+                    {r.display}
+                  </span>
+                </li>
+              ))}
+          </ol>
+        </section>
+      )}
+      {!golf && (
       <section className="grid-2" aria-label="Scores">
         <Link to="card" className="card-link">
           <Card className="stack-sm">
@@ -155,8 +227,9 @@ export default function Dashboard() {
           </Link>
         )}
       </section>
+      )}
 
-      {board.data && board.data.visible && (board.data.teams.length > 0 || board.data.individuals.length > 0) && (
+      {!golf && board.data && board.data.visible && (board.data.teams.length > 0 || board.data.individuals.length > 0) && (
         <section className="stack-sm" aria-labelledby="top-h">
           <h2 id="top-h" className="section-title">
             {theme.vocab.leaderboard}
@@ -229,7 +302,7 @@ export default function Dashboard() {
   );
 }
 
-function CurrentVenueCard({ item, remaining, total, vocab, eventId, paused }: { item: VenueProgressItem; remaining: number; total: number; vocab: { venue: string; challenges: string }; eventId: string; paused: boolean }) {
+function CurrentVenueCard({ item, remaining, total, vocab, eventId, paused, golfLine }: { item: VenueProgressItem; remaining: number; total: number; vocab: { venue: string; challenges: string }; eventId: string; paused: boolean; golfLine?: string }) {
   const v = item.venue;
   const dir = directionsUrl(v);
   const apple = appleMapsUrl(v);
@@ -244,6 +317,11 @@ function CurrentVenueCard({ item, remaining, total, vocab, eventId, paused }: { 
         <h2 id="cur-h" className="deco-title" style={{ fontSize: 'var(--fs-xl)' }}>
           {v.name}
         </h2>
+        {golfLine && (
+          <p className="row" style={{ gap: 6, fontWeight: 700 }}>
+            <Icon name="flag" size={16} /> {golfLine}
+          </p>
+        )}
         {v.address && <p className="small">{v.address}</p>}
         {(v.arrive_at || v.depart_at) && (
           <p className="small">
@@ -259,7 +337,7 @@ function CurrentVenueCard({ item, remaining, total, vocab, eventId, paused }: { 
         </Banner>
       ) : (
         <LinkButton to={`/e/${eventId}/play/${v.id}`} variant="secondary" size="lg" block icon="target" aria-disabled={paused}>
-          {total === 0 ? `Open ${vocab.venue.toLowerCase()}` : remaining === 0 ? `All ${total} done — view` : `${remaining} of ${total} ${vocab.challenges.toLowerCase()} to go`}
+          {golfLine ? `Score this ${vocab.venue.toLowerCase()}` : total === 0 ? `Open ${vocab.venue.toLowerCase()}` : remaining === 0 ? `All ${total} done — view` : `${remaining} of ${total} ${vocab.challenges.toLowerCase()} to go`}
         </LinkButton>
       )}
       <div className="row-wrap">

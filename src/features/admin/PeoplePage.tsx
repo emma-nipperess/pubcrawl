@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { AdminShell } from './AdminRoutes';
 import { useAdminAction } from './useAdminAction';
 import { useEventCtx } from '@/app/EventRoutes';
-import { db, rpc, useMembers, useParticipation, useTeams, useVenues } from '@/lib/supabase/queries';
+import { db, rpc, useGolfScores, useMembers, useParticipation, useTeams, useVenues } from '@/lib/supabase/queries';
+import { holePar } from '@/features/golf/golf';
 import { Avatar, Badge, Banner, Button, Card, EmptyState, LoadingBlock, NumberInput, Segmented, Select, Sheet, TextInput, Toggle } from '@/components/ui';
 import { Icon, TEAM_ICONS } from '@/components/Icon';
 import { shuffleIntoTeams, pickTeamForLateJoiner } from '@/features/teams/shuffle';
@@ -15,6 +16,8 @@ export default function PeoplePage() {
   const teams = useTeams(event.id);
   const venues = useVenues(event.id);
   const participation = useParticipation(event.id);
+  const golf = event.game_mode === 'golf';
+  const golfScores = useGolfScores(event.id, golf);
   const { run, busy } = useAdminAction(event.id);
   const [tab, setTab] = useState<'teams' | 'people'>(event.play_mode === 'individual' ? 'people' : 'teams');
   const [shuffleOpen, setShuffleOpen] = useState(false);
@@ -225,16 +228,41 @@ export default function PeoplePage() {
             )}
             {(venues.data?.length ?? 0) > 0 && (
               <section className="stack-sm">
-                <h3>Attendance</h3>
-                <p className="xsmall muted">Override check-ins and skips. Overridden skips never carry a penalty.</p>
+                <h3>{golf ? 'Holes' : 'Attendance'}</h3>
+                <p className="xsmall muted">
+                  Override check-ins and skips. Overridden skips never carry a penalty.{golf ? ' Fix strokes for any started hole — changes are logged.' : ''}
+                </p>
                 <ul className="list">
                   {venues.data!.filter((v) => !v.disabled).map((v) => {
                     const p = participation.data?.find((x) => x.member_id === person.id && x.venue_id === v.id);
+                    const gs = golfScores.data?.find((x) => x.venue_id === v.id && x.member_id === person.id);
+                    const par = holePar(v.par, event.golf_default_par);
                     return (
                       <li key={v.id} className="row" style={{ gap: 8 }}>
                         <span className="grow small truncate">
                           {v.position + 1}. {v.name}
                         </span>
+                        {golf && (
+                          <select
+                            className="select"
+                            style={{ minHeight: 40, width: 'auto', padding: '4px 8px' }}
+                            aria-label={`Strokes at ${v.name} (par ${par})`}
+                            value={gs?.strokes ?? ''}
+                            disabled={v.status === 'upcoming'}
+                            onChange={(e) =>
+                              run(`golf-${v.id}`, () => rpc('record_golf_score', { p_venue_id: v.id, p_strokes: e.target.value ? Number(e.target.value) : null, p_member_id: person.id }), {
+                                refresh: ['golf', 'leaderboard', 'participation'],
+                              })
+                            }
+                          >
+                            <option value="">Par {par}: —</option>
+                            {Array.from({ length: par + (event.golf_max_over ?? 3) }, (_, k) => k + 1).map((n) => (
+                              <option key={n} value={n}>
+                                {n} {n === par ? '(par)' : ''}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                         <select
                           className="select"
                           style={{ minHeight: 40, width: 'auto', padding: '4px 8px' }}

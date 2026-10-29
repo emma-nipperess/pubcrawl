@@ -35,7 +35,7 @@ export function PlayerShell({ children, title }: { children: ReactNode; title?: 
       <BottomNav
         items={[
           { to: base, label: 'Home', icon: 'home', end: true },
-          { to: `${base}/play`, label: theme.vocab.challenges, icon: 'target' },
+          { to: `${base}/play`, label: event.game_mode === 'golf' ? theme.vocab.venues : theme.vocab.challenges, icon: event.game_mode === 'golf' ? 'flag' : 'target' },
           { to: `${base}/board`, label: 'Board', icon: 'trophy' },
           { to: `${base}/card`, label: 'Card', icon: 'list-checks' },
           { to: `${base}/feed`, label: 'Moments', icon: 'image' },

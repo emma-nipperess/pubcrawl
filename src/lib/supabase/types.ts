@@ -23,6 +23,7 @@ export type ProofMedia = 'none' | 'photo' | 'video' | 'either';
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected' | 'resubmit' | 'withdrawn';
 export type Reveal = 'always' | 'with_venue' | 'at_time';
 export type TeamAwardMode = 'team_only' | 'team_and_members';
+export type GameMode = 'crawl' | 'golf';
 
 export interface CustomTheme {
   accent?: string;
@@ -68,6 +69,9 @@ export interface EventRow {
   allow_partial_points: boolean;
   tie_break: TieBreak;
   media_retention_days: number;
+  game_mode: GameMode;
+  golf_default_par: number;
+  golf_max_over: number;
   status: EventStatus;
   current_venue_id: string | null;
   published_at: string | null;
@@ -110,6 +114,7 @@ export interface VenueRow {
   accent_color: string | null;
   image_path: string | null;
   par: number | null;
+  drink: string | null;
   bonus_points: number;
   time_limit_minutes: number | null;
   disabled: boolean;
@@ -372,6 +377,56 @@ export interface Leaderboard {
   teams: BoardTeam[];
 }
 
+export interface GolfScoreRow {
+  id: string;
+  event_id: string;
+  venue_id: string;
+  member_id: string;
+  strokes: number;
+  recorded_by: string | null;
+  updated_at: string;
+}
+
+export interface GolfPerson {
+  member_id: string;
+  name: string;
+  avatar_color: string;
+  avatar_icon: string;
+  team_id: string | null;
+  strokes: number;
+  par: number;
+  thru: number;
+  adjustment: number;
+  pending: number;
+  to_par: number | null;
+  rank: number | null;
+  tied: boolean;
+  is_me: boolean;
+}
+
+export interface GolfTeam {
+  team_id: string;
+  name: string;
+  color: string;
+  icon: string;
+  size: number;
+  thru: number;
+  to_par: number | null;
+  adjustment: number;
+  rank: number | null;
+  tied: boolean;
+  is_mine: boolean;
+}
+
+export interface GolfBoard {
+  visible: boolean;
+  provisional_scoring: boolean;
+  tie_break: TieBreak;
+  max_over: number;
+  individuals: GolfPerson[];
+  teams: GolfTeam[];
+}
+
 /** Shape used by templates and create_event's p_venues. */
 export interface ChallengeDraft {
   id?: string;
@@ -416,6 +471,7 @@ export interface VenueDraft {
   duration_minutes?: number | null;
   accent_color?: string | null;
   par?: number | null;
+  drink?: string | null;
   bonus_points?: number;
   time_limit_minutes?: number | null;
   organiser_notes?: string | null;

@@ -4,8 +4,54 @@ import { Icon } from '@/components/Icon';
 import { CUSTOM_FONTS, THEME_ORDER, THEMES, contrastRatio, type ThemeKey } from '@/features/themes/themes';
 import { ThemeMotif } from '@/features/themes/ThemeScope';
 import type { Errors } from '@/lib/validation/forms';
+import { GOLF_SAFETY } from '@/features/golf/golf';
 
 export type EventForm = Partial<EventRow> & { organiser_plays?: boolean };
+
+/** Pub crawl (points, highest wins) or pub golf (strokes vs par, lowest wins). */
+export function GameModeFields({ value, onChange, started }: { value: EventForm; onChange: (e: EventForm) => void; started?: boolean }) {
+  const golf = value.game_mode === 'golf';
+  return (
+    <div className="stack">
+      <fieldset>
+        <legend className="sr-only">Game type</legend>
+        <div className="grid-2">
+          {(
+            [
+              { k: 'crawl', icon: 'route', title: 'Pub crawl', body: 'Challenges earn points. Highest score wins.' },
+              { k: 'golf', icon: 'flag', title: 'Pub golf', body: 'Each hole has a drink and a par. Fewest strokes wins.' },
+            ] as const
+          ).map((o) => (
+            <label key={o.k} className="option-card">
+              <input type="radio" name="game_mode" checked={(value.game_mode ?? 'crawl') === o.k} onChange={() => onChange({ ...value, game_mode: o.k })} />
+              <div className="card card--tight stack-sm" style={{ height: '100%' }}>
+                <Icon name={o.icon} size={26} />
+                <strong>{o.title}</strong>
+                <span className="xsmall muted">{o.body}</span>
+              </div>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      {started && <p className="xsmall muted">Switching mid-crawl keeps every score; the leaderboard just changes how it ranks.</p>}
+      {golf && (
+        <div className="stack-sm card card--muted">
+          <p className="small">
+            Players record <strong>strokes</strong> on each hole (sips to finish that hole’s drink). Score is shown <strong>to par</strong> (−2, E, +3) and the
+            lowest wins. Challenges become hazards &amp; bonuses: each point takes a stroke off.
+          </p>
+          <div className="grid-2">
+            <NumberInput label="Default par" hint="For holes without their own par" min={1} max={20} value={value.golf_default_par ?? 3} onValue={(n) => onChange({ ...value, golf_default_par: n ?? 3 })} />
+            <NumberInput label="Max over par" hint="Pick-up score; also used for missed holes" min={1} max={20} value={value.golf_max_over ?? 3} onValue={(n) => onChange({ ...value, golf_max_over: n ?? 3 })} />
+          </div>
+          <p className="xsmall">
+            <Icon name="shield" size={12} /> {GOLF_SAFETY}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function ThemePicker({ value, onChange }: { value: string; onChange: (k: ThemeKey) => void }) {
   return (
@@ -164,12 +210,20 @@ export function RulesFields({ value, onChange, errors, theme, live }: { value: E
           <Icon name="skip" /> Skipping & venues
         </h3>
         <Toggle label={`Players can skip a ${theme.vocab.venue.toLowerCase()}`} checked={value.allow_skip ?? true} onChange={(v) => set('allow_skip', v)} />
-        <Select label="When someone skips or misses one" value={value.skip_policy ?? 'none'} onChange={(e) => set('skip_policy', e.target.value as EventRow['skip_policy'])}>
-          <option value="none">No penalty — skipped challenges just don’t score</option>
-          <option value="zero">Missed challenges show as zero on the scorecard</option>
-          <option value="penalty">Deduct points for each skip</option>
-        </Select>
-        {value.skip_policy === 'penalty' && <NumberInput label="Skip penalty" min={0} max={1000} value={value.skip_penalty ?? 0} onValue={(n) => set('skip_penalty', n ?? 0)} error={errors?.skip_penalty} />}
+        {value.game_mode === 'golf' ? (
+          <Select label="When someone skips or misses a hole" value={value.skip_policy ?? 'none'} onChange={(e) => set('skip_policy', e.target.value as EventRow['skip_policy'])}>
+            <option value="none">Doesn’t count — judged on holes played</option>
+            <option value="zero">Counts as par + max (pick-up score)</option>
+            <option value="penalty">Pick-up score plus extra penalty strokes</option>
+          </Select>
+        ) : (
+          <Select label="When someone skips or misses one" value={value.skip_policy ?? 'none'} onChange={(e) => set('skip_policy', e.target.value as EventRow['skip_policy'])}>
+            <option value="none">No penalty — skipped challenges just don’t score</option>
+            <option value="zero">Missed challenges show as zero on the scorecard</option>
+            <option value="penalty">Deduct points for each skip</option>
+          </Select>
+        )}
+        {value.skip_policy === 'penalty' && <NumberInput label={value.game_mode === 'golf' ? 'Extra penalty strokes per skip' : 'Skip penalty'} min={0} max={1000} value={value.skip_penalty ?? 0} onValue={(n) => set('skip_penalty', n ?? 0)} error={errors?.skip_penalty} />}
         <Toggle label="Allow catching up on earlier venues" hint="Players can still submit challenges from finished venues." checked={value.allow_any_venue ?? false} onChange={(v) => set('allow_any_venue', v)} />
         <Toggle label="Show challenges before arriving" hint="Otherwise each venue’s challenges are revealed when it opens." checked={value.challenges_visible_early ?? false} onChange={(v) => set('challenges_visible_early', v)} />
       </section>

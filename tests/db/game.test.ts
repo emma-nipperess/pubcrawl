@@ -878,3 +878,114 @@ describe('player-made teams and shared gallery', () => {
     expect(await db.as(owner, `select * from public.list_event_media($1)`, [ev.eventId])).toHaveLength(3);
   });
 });
+
+describe('pub golf', () => {
+  type GolfBoard = {
+    individuals: { member_id: string; name: string; strokes: number; par: number; thru: number; to_par: number | null; rank: number | null; tied: boolean }[];
+    teams: { team_id: string; name: string; to_par: number | null; rank: number | null }[];
+  };
+  const golfBoard = (uid: string, eventId: string) => db.rpc<GolfBoard>(uid, 'get_golf_leaderboard', { p_event_id: eventId });
+  const score = (uid: string, venue: string, strokes: number | null, member?: string) =>
+    db.rpc(uid, 'record_golf_score', { p_venue_id: venue, p_strokes: strokes, p_member_id: member ?? null });
+
+  async function course(event: Record<string, unknown> = {}) {
+    const owner = await db.user('owner');
+    const ev = await setupEvent(owner, {
+      event: { game_mode: 'golf', golf_default_par: 3, golf_max_over: 3, skip_policy: 'zero', play_mode: 'both', team_selection: 'self', team_names: [{ name: 'Red' }, { name: 'Blue' }], ...event },
+      venues: [
+        { name: 'Hole 1', par: 4, drink: 'Pint or pint of soft drink', challenges: [{ title: 'Birdie bonus', type: 'checkbox', points: 1 }] },
+        { name: 'Hole 2', drink: 'Half or lemonade', challenges: [] },
+        { name: 'Hole 3', par: 2, challenges: [] },
+      ],
+    });
+    const [{ game_mode }] = await db.admin<{ game_mode: string }>(`select game_mode from public.events where id = $1`, [ev.eventId]);
+    expect(game_mode).toBe('golf');
+    const drinks = await db.admin<{ drink: string | null; par: number | null }>(`select drink, par from public.venues where event_id = $1 order by position`, [ev.eventId]);
+    expect(drinks).toEqual([{ drink: 'Pint or pint of soft drink', par: 4 }, { drink: 'Half or lemonade', par: null }, { drink: null, par: 2 }]);
+    await db.call(owner, 'set_event_status', { p_event_id: ev.eventId, p_status: 'published' });
+    const teams = await db.admin<{ id: string; name: string }>(`select id, name from public.teams where event_id = $1`, [ev.eventId]);
+    const red = teams.find((t) => t.name === 'Red')!.id;
+    const blue = teams.find((t) => t.name === 'Blue')!.id;
+    return { owner, ...ev, red, blue };
+  }
+
+  it('lowest to-par wins; missed holes count as par + max; challenges take strokes off', async () => {
+    const c = await course();
+    const [a, b] = [await db.user('a'), await db.user('b')];
+    const aId = await join(a, c.code, 'Ann', c.red);
+    await join(b, c.code, 'Bob', c.blue);
+    await expect(score(a, c.venues[0].id, 3)).rejects.toThrow(/when the crawl starts/);
+    await db.call(c.owner, 'set_event_status', { p_event_id: c.eventId, p_status: 'in_progress' });
+    await score(a, c.venues[0].id, 3); // birdie on par 4
+    await score(b, c.venues[0].id, 6); // +2
+    await expect(score(b, c.venues[0].id, 8)).rejects.toThrow(/between 1 and 7/);
+    await submit(a, c.ch['Birdie bonus']); // -1 stroke
+    await score(a, c.venues[0].id, 4); // change of mind: overwrite, not duplicate
+    expect(await db.admin(`select 1 from public.golf_scores where member_id = $1`, [aId])).toHaveLength(1);
+    let g = await golfBoard(a, c.eventId);
+    const ann = () => g.individuals.find((r) => r.name === 'Ann')!;
+    const bob = () => g.individuals.find((r) => r.name === 'Bob')!;
+    expect(ann()).toMatchObject({ strokes: 4, par: 4, thru: 1, to_par: -1, rank: 1 });
+    expect(bob()).toMatchObject({ to_par: 2, rank: 2 });
+    // hole 2 closes: Ann scores 3 (par 3 default), Bob never records → par + 3 = 6
+    await db.rpc(c.owner, 'advance_venue', { p_event_id: c.eventId });
+    await score(a, c.venues[1].id, 3);
+    await expect(score(b, c.venues[0].id, 5)).rejects.toThrow(/closed/);
+    await db.rpc(c.owner, 'advance_venue', { p_event_id: c.eventId });
+    g = await golfBoard(a, c.eventId);
+    expect(ann()).toMatchObject({ thru: 2, to_par: -1 });
+    expect(bob()).toMatchObject({ thru: 2, strokes: 12, par: 7, to_par: 5 });
+    // teams: average member to-par
+    expect(g.teams.find((t) => t.team_id === c.red)!.to_par).toBe(-1);
+    expect(g.teams.find((t) => t.team_id === c.blue)!.to_par).toBe(5);
+    // organiser can correct a closed hole for someone (audited); players can't touch others
+    await expect(score(a, c.venues[1].id, 2, (g.individuals.find((r) => r.name === 'Bob')!).member_id)).rejects.toThrow(/Only organisers/);
+    await score(c.owner, c.venues[1].id, 3, bob().member_id);
+    g = await golfBoard(a, c.eventId);
+    expect(bob().to_par).toBe(2);
+    expect(await db.admin(`select 1 from public.event_audit_log where event_id = $1 and action = 'golf.set_by_organiser'`, [c.eventId])).toHaveLength(1);
+  });
+
+  it('late joiners and "no penalty" skips are judged only on holes played', async () => {
+    const c = await course({ skip_policy: 'none', play_mode: 'individual' });
+    const a = await db.user('a');
+    await join(a, c.code, 'Ann');
+    await db.call(c.owner, 'set_event_status', { p_event_id: c.eventId, p_status: 'in_progress' });
+    await score(a, c.venues[0].id, 4);
+    await db.rpc(c.owner, 'advance_venue', { p_event_id: c.eventId });
+    const late = await db.user('late');
+    await join(late, c.code, 'Lou');
+    await db.call(a, 'skip_venue', { p_venue_id: c.venues[1].id, p_reason: 'food' });
+    await expect(score(a, c.venues[1].id, 2)).rejects.toThrow(/skipped/);
+    await score(late, c.venues[1].id, 2); // -1 on par 3
+    await db.rpc(c.owner, 'advance_venue', { p_event_id: c.eventId });
+    const g = await golfBoard(a, c.eventId);
+    expect(g.individuals.find((r) => r.name === 'Ann')).toMatchObject({ thru: 1, to_par: 0 });
+    expect(g.individuals.find((r) => r.name === 'Lou')).toMatchObject({ thru: 1, to_par: -1, rank: 1 });
+  });
+
+  it('players who have not played are listed unranked; golf scores are private to their event', async () => {
+    const c = await course({ play_mode: 'individual' });
+    const [a, outsider] = [await db.user('a'), await db.user('o')];
+    await join(a, c.code, 'Ann');
+    await db.call(c.owner, 'set_event_status', { p_event_id: c.eventId, p_status: 'in_progress' });
+    const g = await golfBoard(a, c.eventId);
+    expect(g.individuals[0]).toMatchObject({ name: 'Ann', to_par: null, rank: null, thru: 0 });
+    await expect(golfBoard(outsider, c.eventId)).rejects.toThrow(/Join the event/);
+    await expect(score(outsider, c.venues[0].id, 3)).rejects.toThrow(/Join the event/);
+    await expect(db.as(a, `insert into public.golf_scores (event_id, venue_id, member_id, strokes) select $1, $2, id, 1 from public.event_members where user_id = auth.uid()`, [c.eventId, c.venues[0].id])).rejects.toThrow(/permission denied/);
+    // crawl-mode events refuse golf scores
+    const crawl = await setupEvent(c.owner);
+    await db.call(c.owner, 'set_event_status', { p_event_id: crawl.eventId, p_status: 'published' });
+    await join(a, crawl.code, 'Ann');
+    await db.call(c.owner, 'set_event_status', { p_event_id: crawl.eventId, p_status: 'in_progress' });
+    await expect(score(a, crawl.venues[0].id, 3)).rejects.toThrow(/isn.t using pub golf/);
+  });
+
+  it('duplicating a golf event keeps the mode, pars and drinks', async () => {
+    const c = await course();
+    const copy = await db.rpc<string>(c.owner, 'duplicate_event', { p_event_id: c.eventId, p_name: 'Again' });
+    expect(await db.admin(`select game_mode, golf_max_over from public.events where id = $1`, [copy])).toEqual([{ game_mode: 'golf', golf_max_over: 3 }]);
+    expect((await db.admin<{ drink: string | null }>(`select drink from public.venues where event_id = $1 order by position`, [copy])).map((r) => r.drink)).toEqual(['Pint or pint of soft drink', 'Half or lemonade', null]);
+  });
+});

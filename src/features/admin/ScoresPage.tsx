@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { AdminShell } from './AdminRoutes';
 import { useAdminAction } from './useAdminAction';
 import { useEventCtx } from '@/app/EventRoutes';
-import { rpc, useAdjustments, useAudit, useLeaderboard, useMembers, useTeams } from '@/lib/supabase/queries';
+import { rpc, useAdjustments, useAudit, useGolfBoard, useLeaderboard, useMembers, useTeams } from '@/lib/supabase/queries';
+import { formatToPar } from '@/features/golf/golf';
+import { golfTeamRow } from '@/features/golf/golfRows';
 import { Banner, Button, Card, EmptyState, NumberInput, Segmented, Select, TextInput } from '@/components/ui';
 import { LeaderboardList } from '@/features/leaderboard/LeaderboardList';
 import { toCsv, downloadText } from '@/lib/csv';
@@ -27,7 +29,9 @@ interface ExportRow {
 
 export default function ScoresPage() {
   const { event, theme } = useEventCtx();
+  const golf = event.game_mode === 'golf';
   const board = useLeaderboard(event.id);
+  const golfBoard = useGolfBoard(event.id, golf);
   const members = useMembers(event.id);
   const teams = useTeams(event.id);
   const adjustments = useAdjustments(event.id, true);
@@ -54,6 +58,11 @@ export default function ScoresPage() {
           out.individuals.map((r) => [r.rank ?? '', r.name, r.team ?? '', r.role, r.status, r.joined_late ? 'yes' : 'no', r.venues_present, r.venues_skipped, r.challenges_completed, r.points, r.bonus, r.penalties, r.adjustments, r.total ?? 0]),
         ),
       );
+      if (golf) {
+        const gb = await rpc<{ individuals: { name: string; strokes: number; par: number; thru: number; to_par: number | null; rank: number | null }[]; teams: { name: string; to_par: number | null; rank: number | null; size: number }[] }>('get_golf_leaderboard', { p_event_id: event.id });
+        downloadText(`${slug}-golf.csv`, toCsv(['Rank', 'Name', 'Holes played', 'Strokes', 'Par', 'To par'], gb.individuals.map((r) => [r.rank ?? '', r.name, r.thru, r.strokes, r.par, formatToPar(r.to_par)])));
+        if (gb.teams.length) downloadText(`${slug}-golf-teams.csv`, toCsv(['Rank', 'Team', 'Players', 'Average to par'], gb.teams.map((t) => [t.rank ?? '', t.name, t.size, formatToPar(t.to_par == null ? null : Number(t.to_par))])));
+      }
       if (out.teams?.length) {
         downloadText(`${slug}-teams.csv`, toCsv(['Rank', 'Team', 'Players', 'Challenges completed', 'Confirmed total', 'Tied'], out.teams.map((t) => [t.rank, t.name, t.size, t.completed, t.confirmed, t.tied ? 'yes' : 'no'])));
       }
@@ -69,6 +78,11 @@ export default function ScoresPage() {
 
       <Card className="stack">
         <h2 style={{ fontSize: 'var(--fs-lg)' }}>Correct a score</h2>
+        {golf && (
+          <p className="small">
+            <strong>Pub golf:</strong> enter strokes. Positive adds strokes (worse), negative takes them off (better). To fix one hole, use People → a player → Holes instead.
+          </p>
+        )}
         <p className="small muted">Every correction is logged with the old and new total, your reason, who made it and when. Players can see corrections to their own score.</p>
         <Segmented
           legend="For"
@@ -93,8 +107,8 @@ export default function ScoresPage() {
                 </option>
               ))}
         </Select>
-        {who && <p className="small">Current confirmed total: <strong>{current ?? 0}</strong></p>}
-        <Segmented
+        {who && !golf && <p className="small">Current confirmed total: <strong>{current ?? 0}</strong></p>}
+        {!golf && <Segmented
           legend="Change by"
           value={mode}
           onChange={setMode}
@@ -102,8 +116,8 @@ export default function ScoresPage() {
             { value: 'delta', label: 'Add / subtract' },
             { value: 'total', label: 'Set new total' },
           ]}
-        />
-        <NumberInput label={mode === 'delta' ? 'Points (negative to subtract)' : 'New total'} min={-10000} max={10000} value={value} onValue={setValue} />
+        />}
+        <NumberInput label={golf ? 'Strokes to add (negative = take off)' : mode === 'delta' ? 'Points (negative to subtract)' : 'New total'} min={-10000} max={10000} value={value} onValue={setValue} />
         <TextInput label="Reason (required)" value={reason} maxLength={300} onChange={(e) => setReason(e.target.value)} placeholder="Missed a photo during the network outage" />
         <Button
           variant="primary"
@@ -118,11 +132,12 @@ export default function ScoresPage() {
                   p_member_id: target === 'member' ? who : null,
                   p_team_id: target === 'team' ? who : null,
                   p_reason: reason.trim(),
-                  p_delta: mode === 'delta' ? value : null,
-                  p_new_total: mode === 'total' ? value : null,
+                  // golf: ledger points take strokes off, so adding strokes is a negative ledger delta
+                  p_delta: golf ? -(value ?? 0) : mode === 'delta' ? value : null,
+                  p_new_total: golf ? null : mode === 'total' ? value : null,
                 }),
               {
-                confirm: { title: 'Apply this correction?', body: mode === 'delta' ? `${value! > 0 ? '+' : ''}${value} for ${nameOf(target === 'member' ? who : null, who)}.` : `Set ${nameOf(target === 'member' ? who : null, who)} to ${value}.` },
+                confirm: { title: 'Apply this correction?', body: golf ? `${value! > 0 ? '+' : ''}${value} strokes for ${nameOf(target === 'member' ? who : null, who)}.` : mode === 'delta' ? `${value! > 0 ? '+' : ''}${value} for ${nameOf(target === 'member' ? who : null, who)}.` : `Set ${nameOf(target === 'member' ? who : null, who)} to ${value}.` },
                 success: 'Score corrected',
               },
             );
@@ -157,7 +172,13 @@ export default function ScoresPage() {
         )}
       </section>
 
-      {board.data && board.data.teams.length > 0 && (
+      {golf && golfBoard.data && golfBoard.data.teams.length > 0 && (
+        <section className="stack-sm">
+          <h2 className="section-title">{theme.vocab.team} standings</h2>
+          <LeaderboardList rows={golfBoard.data.teams.map(golfTeamRow)} unit="to par" provisional={false} />
+        </section>
+      )}
+      {!golf && board.data && board.data.teams.length > 0 && (
         <section className="stack-sm">
           <h2 className="section-title">{theme.vocab.team} standings</h2>
           <LeaderboardList rows={board.data.teams.map((t) => ({ id: t.team_id, name: t.name, color: t.color, icon: t.icon, score: t.score, confirmed: t.confirmed, pending: t.pending, rank: t.rank, tied: t.tied, mine: false }))} unit={theme.vocab.points} provisional={board.data.provisional_scoring} />

@@ -78,24 +78,24 @@ export const TEMPLATES: Record<ThemeKey, ThemeTemplate> = {
     scoringPreset: 'relaxed',
     event: { play_mode: 'both', tie_break: 'most_completed' },
     venues: [
-      { name: 'Hole 1 — The Clubhouse', par: 20, description: 'Tee off. Meet the course and warm up.', challenges: [
+      { name: 'Hole 1 — The Clubhouse', description: 'Tee off. Meet the course and warm up.', challenges: [
         c('Opening drive', { description: 'Team photo at the first tee (the front door).', type: 'photo', scope: 'team', points: 10 }),
         c('Rule check', { description: 'Which of these is a real golf term for one under par?', type: 'multiple_choice', points: 5, choices: ['Birdie', 'Robin', 'Pigeon'], correct_choice: 0 }),
         c('Zero-proof caddie', { description: 'Order a soft drink or mocktail with a golf-sounding name (or invent one).', type: 'text', points: 5, text_prompt: 'Drink + name', required: false, safety_notes: SAFETY_DRINK }),
       ] },
-      { name: 'Hole 2 — The Fairway', par: 20, challenges: [
+      { name: 'Hole 2 — The Fairway', challenges: [
         c('Putting green', { description: 'Roll a coin into a cup from two metres. Video your best attempt.', type: 'video', points: 10, max_attempts: 3 }),
         c('Course designer', { description: 'Sketch tonight’s hole on a napkin and photograph it.', type: 'photo', points: 10, requires_approval: true }),
       ] },
-      { name: 'Hole 3 — The Bunker', par: 20, challenges: [
+      { name: 'Hole 3 — The Bunker', challenges: [
         c('Escape the bunker', { description: 'Your team has five minutes to solve: I am taken from a mine and shut in a wooden case, never released, yet used by almost everybody. What am I?', type: 'text', scope: 'team', points: 12, accepted_answers: ['pencil lead', 'lead', 'graphite', 'pencil'], max_attempts: 3, time_limit_minutes: 30 }),
         c('Caddie compliment', { description: 'Thank the bar staff by name. Tick when done.', type: 'checkbox', points: 5 }),
       ] },
-      { name: 'Hole 4 — The Dogleg', par: 20, challenges: [
+      { name: 'Hole 4 — The Dogleg', challenges: [
         c('Swing coach', { description: 'Slow-motion video of your best (imaginary) golf swing.', type: 'video', points: 10 }),
         c('Colour of the course', { description: 'Find something green in this venue.', type: 'photo', points: 8 }),
       ] },
-      { name: 'Hole 5 — The 19th', par: 20, description: 'The clubhouse bar. Cards in, scores up.', challenges: [
+      { name: 'Hole 5 — The 19th', description: 'The clubhouse bar. Cards in, scores up.', challenges: [
         c('Trophy pose', { description: 'Whole-team victory pose, winners or not.', type: 'photo', scope: 'team', points: 10 }),
         c('Round review', { description: 'Your hole of the night and why.', type: 'text', points: 5, text_prompt: 'Best hole' }),
       ] },
@@ -267,4 +267,7 @@ export const EVENT_DEFAULTS: Partial<EventRow> = {
   allow_partial_points: false,
   tie_break: 'shared',
   media_retention_days: 30,
+  game_mode: 'crawl',
+  golf_default_par: 3,
+  golf_max_over: 3,
 };

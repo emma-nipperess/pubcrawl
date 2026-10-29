@@ -8,7 +8,8 @@ import { Icon, TEAM_ICONS } from '@/components/Icon';
 import { useFeedback } from '@/components/feedback';
 import type { Scorecard } from '@/features/challenges/scorecard';
 import { stateLabel } from './RouteStrip';
-import { db, rpc, useAchievements } from '@/lib/supabase/queries';
+import { db, rpc, useAchievements, useGolfBoard, useGolfScores } from '@/lib/supabase/queries';
+import { GolfCard } from '@/features/golf/GolfCard';
 import { forgetEvent } from '@/lib/recent';
 import { TEAM_COLORS } from '@/features/templates/content';
 import type { ThemeDef } from '@/features/themes/themes';
@@ -18,6 +19,9 @@ export default function ScorecardPage() {
   const { event, theme, member, myTeam, teamCard, myCard } = g;
   const [view, setView] = useState<'me' | 'team'>('me');
   const ach = useAchievements(event.id);
+  const golf = event.game_mode === 'golf';
+  const golfScores = useGolfScores(event.id, golf);
+  const golfBoard = useGolfBoard(event.id, golf);
 
   useEffect(() => {
     if (window.location.hash === '#leave') document.getElementById('leave')?.scrollIntoView();
@@ -52,7 +56,10 @@ export default function ScorecardPage() {
         </div>
       )}
       <TeamPicker />
-      {myTeam && (
+      {golf && member && (
+        <GolfCard event={event} progress={g.progress} scores={golfScores.data ?? []} memberId={member.id} row={golfBoard.data?.individuals.find((r) => r.member_id === member.id)} />
+      )}
+      {!golf && myTeam && (
         <Segmented
           legend="Scorecard"
           value={view}
@@ -63,8 +70,8 @@ export default function ScorecardPage() {
           ]}
         />
       )}
-      <ScorecardView card={card} theme={theme} />
-      {view === 'team' && <p className="xsmall muted">Team totals include challenges completed by anyone while they were on the team. Moving teams never moves points already earned.</p>}
+      {!golf && <ScorecardView card={card} theme={theme} />}
+      {!golf && view === 'team' && <p className="xsmall muted">Team totals include challenges completed by anyone while they were on the team. Moving teams never moves points already earned.</p>}
 
       {myBadges.length > 0 && (
         <section className="stack-sm">
@@ -117,44 +124,6 @@ export function ScorecardView({ card, theme }: { card: Scorecard; theme: ThemeDe
         {card.adjustments !== 0 && <Badge tone="info">Organiser adjustments {card.adjustments > 0 ? '+' : ''}{card.adjustments}</Badge>}
       </div>
 
-      {theme.golfCard ? (
-        <div style={{ overflowX: 'auto' }} className="card" tabIndex={0} aria-label="Golf scorecard">
-          <table className="scorecard-golf">
-            <caption className="sr-only">Scorecard by hole</caption>
-            <thead>
-              <tr>
-                <th scope="col">Hole</th>
-                {card.rows.map((r, i) => (
-                  <th key={r.venue.id} scope="col">
-                    {i + 1}
-                  </th>
-                ))}
-                <th scope="col">Tot</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <th scope="row">Par</th>
-                {card.rows.map((r) => (
-                  <td key={r.venue.id}>{r.venue.par ?? r.available}</td>
-                ))}
-                <td>{card.rows.reduce((a, r) => a + (r.venue.par ?? r.available), 0)}</td>
-              </tr>
-              <tr>
-                <th scope="row">Score</th>
-                {card.rows.map((r) => (
-                  <td key={r.venue.id} className={r.state === 'active' ? 'is-current' : undefined} title={stateLabel(r.state)}>
-                    {['skipped', 'group_skipped', 'before_join'].includes(r.state) ? '–' : r.state === 'upcoming' ? '' : r.earned}
-                  </td>
-                ))}
-                <td>
-                  <strong>{card.total}</strong>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      ) : null}
 
       <ol className="list">
         {card.rows.map((r, i) => (

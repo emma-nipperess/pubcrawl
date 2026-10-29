@@ -46,6 +46,7 @@ export function SubmitSheet({
   theme,
   latest,
   attemptsUsed,
+  golf,
 }: {
   challenge: ChallengeRow | null;
   open: boolean;
@@ -54,6 +55,7 @@ export function SubmitSheet({
   theme: ThemeDef;
   latest?: SubmissionRow;
   attemptsUsed: number;
+  golf?: boolean;
 }) {
   const { user } = useAuth();
   const fb = useFeedback();
@@ -84,6 +86,8 @@ export function SubmitSheet({
   const c = challenge;
   const accept: Accept | null = c.proof_media === 'none' ? null : c.proof_media === 'either' ? 'either' : c.proof_media;
   const busy = phase === 'uploading' || phase === 'saving';
+  // in pub golf every challenge point takes a stroke off
+  const reward = (n: number) => (golf ? `−${n} ${n === 1 ? 'stroke' : 'strokes'}` : `+${n} ${theme.vocab.points}`);
   const set = (p: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...p } : d));
 
   const missing =
@@ -144,7 +148,7 @@ export function SubmitSheet({
       setResult(row);
       setPhase('done');
       ['submissions', 'ledger', 'leaderboard', 'participation', 'achievements', 'feed'].forEach((k) => qc.invalidateQueries({ queryKey: [k, eventId] }));
-      if (row.status === 'approved') fb.toast(`+${row.points_awarded + row.bonus_awarded} ${theme.vocab.points}!`, 'success');
+      if (row.status === 'approved') fb.toast(`${reward(row.points_awarded + row.bonus_awarded)}!`, 'success');
     } catch (e) {
       setPhase('error');
       const msg = (e as Error).message;
@@ -187,7 +191,7 @@ export function SubmitSheet({
           </span>
           <h3>
             {result.status === 'approved'
-              ? `Nice! +${result.points_awarded + result.bonus_awarded} ${theme.vocab.points}`
+              ? `Nice! ${reward(result.points_awarded + result.bonus_awarded)}`
               : result.status === 'pending'
                 ? 'Sent for review'
                 : result.is_correct === false
@@ -198,7 +202,7 @@ export function SubmitSheet({
             {result.status === 'pending'
               ? `An organiser will check it soon. Points are added once it’s approved${c.penalty_points ? '' : ''}.`
               : result.status === 'rejected' && result.penalty_awarded
-                ? `−${result.penalty_awarded} ${theme.vocab.points}. ${c.max_attempts - attemptsUsed - 1 > 0 ? 'You can try again.' : ''}`
+                ? `${golf ? `+${result.penalty_awarded} strokes` : `−${result.penalty_awarded} ${theme.vocab.points}`}. ${c.max_attempts - attemptsUsed - 1 > 0 ? 'You can try again.' : ''}`
                 : result.status === 'rejected'
                   ? c.max_attempts - attemptsUsed - 1 > 0
                     ? 'You can try again.'
@@ -214,7 +218,7 @@ export function SubmitSheet({
           <div className="row-wrap">
             <Badge icon={CHALLENGE_TYPES[c.type].icon}>{CHALLENGE_TYPES[c.type].label}</Badge>
             <Badge tone="brass">
-              {c.points + c.bonus_points} {theme.vocab.points}
+              {golf ? reward(c.points + c.bonus_points) : `${c.points + c.bonus_points} ${theme.vocab.points}`}
             </Badge>
             {c.scope === 'team' && <Badge icon="users">{theme.vocab.team}</Badge>}
             {c.requires_approval && <Badge icon="badge-check">Reviewed</Badge>}

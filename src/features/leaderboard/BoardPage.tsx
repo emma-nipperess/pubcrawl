@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { PlayerShell } from '@/features/play/PlayerShell';
 import { useEventCtx } from '@/app/EventRoutes';
-import { useLeaderboard, useVenues } from '@/lib/supabase/queries';
+import { useGolfBoard, useLeaderboard, useVenues } from '@/lib/supabase/queries';
+import { golfPersonRow, golfTeamRow } from '@/features/golf/golfRows';
 import { Banner, EmptyState, ErrorState, LoadingBlock, Segmented, Select } from '@/components/ui';
 import { LeaderboardList } from './LeaderboardList';
 import { rankMovements } from './rank';
@@ -9,7 +10,9 @@ import { rankMovements } from './rank';
 export default function BoardPage() {
   const { event, theme } = useEventCtx();
   const [venue, setVenue] = useState<string>('');
+  const golf = event.game_mode === 'golf';
   const board = useLeaderboard(event.id, venue || null);
+  const golfBoard = useGolfBoard(event.id, golf);
   const venues = useVenues(event.id);
   const hasTeams = event.play_mode !== 'individual';
   const [tab, setTab] = useState<'teams' | 'people'>(hasTeams ? 'teams' : 'people');
@@ -61,7 +64,29 @@ export default function BoardPage() {
           ]}
         />
       )}
-      {(venues.data?.length ?? 0) > 1 && (
+      {golf ? (
+        golfBoard.isLoading ? (
+          <LoadingBlock />
+        ) : golfBoard.isError ? (
+          <ErrorState error={golfBoard.error} onRetry={() => golfBoard.refetch()} />
+        ) : golfBoard.data ? (
+          <>
+            {!golfBoard.data.visible && <Banner tone="info" icon="eye-off">The full board is hidden until the end. Here’s where you stand.</Banner>}
+            {tab === 'teams' && hasTeams ? (
+              golfBoard.data.teams.length ? <LeaderboardList rows={golfBoard.data.teams.map(golfTeamRow)} unit="to par" provisional={false} /> : <EmptyState icon="flag" title="No teams yet" />
+            ) : golfBoard.data.individuals.length ? (
+              <LeaderboardList rows={golfBoard.data.individuals.map(golfPersonRow)} unit="to par" provisional={golfBoard.data.provisional_scoring} />
+            ) : (
+              <EmptyState icon="flag" title="Nobody has teed off">Scores appear once players record their first hole.</EmptyState>
+            )}
+            <p className="xsmall muted">
+              Lowest score wins. “E” is even par. Missed holes count as par + {golfBoard.data.max_over}
+              {event.skip_policy === 'none' ? ' — unless skipped, which don’t count' : ''}. Hazards &amp; bonuses take strokes off. Teams are ranked on their players’ average.
+            </p>
+          </>
+        ) : null
+      ) : null}
+      {!golf && (venues.data?.length ?? 0) > 1 && (
         <Select label={`By ${theme.vocab.venue.toLowerCase()}`} value={venue} onChange={(e) => setVenue(e.target.value)}>
           <option value="">Whole crawl</option>
           {venues.data!.filter((v) => !v.disabled).map((v) => (
@@ -71,7 +96,7 @@ export default function BoardPage() {
           ))}
         </Select>
       )}
-      {board.isLoading ? (
+      {golf ? null : board.isLoading ? (
         <LoadingBlock />
       ) : board.isError ? (
         <ErrorState error={board.error} onRetry={() => board.refetch()} />

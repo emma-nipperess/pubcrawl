@@ -32,7 +32,7 @@ export const THEMES: Record<ThemeKey, ThemeDef> = {
     motif: 'golf',
     preview: { bg: '#eaf0e1', ink: '#12322a', accent: '#1d6644', accent2: '#f2d16b' },
     dark: false,
-    vocab: { venue: 'Hole', venues: 'Holes', challenge: 'Shot', challenges: 'Shots', team: 'Fourball', points: 'pts', leaderboard: 'Clubhouse board' },
+    vocab: { venue: 'Hole', venues: 'Holes', challenge: 'Challenge', challenges: 'Challenges', team: 'Fourball', points: 'pts', leaderboard: 'Clubhouse board' },
     golfCard: true,
     icons: ['flag', 'target', 'trophy', 'medal', 'clover', 'sun'],
     loadFont: () => import('@fontsource-variable/fraunces/index.css'),

@@ -13,6 +13,8 @@ import { rpc } from '@/lib/supabase/queries';
 import type { ChallengeRow } from '@/lib/supabase/types';
 import { stateLabel } from './RouteStrip';
 import { formatTime } from '@/lib/format';
+import { useGolfScores } from '@/lib/supabase/queries';
+import { GolfHoleCard } from '@/features/golf/GolfHoleCard';
 
 export default function PlayVenue() {
   const g = useGame();
@@ -25,6 +27,8 @@ export default function PlayVenue() {
   const [skipping, setSkipping] = useState(false);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const golf = event.game_mode === 'golf';
+  const golfScores = useGolfScores(event.id, golf);
 
   if (g.loading)
     return (
@@ -92,7 +96,7 @@ export default function PlayVenue() {
               <h3 style={{ fontSize: 'var(--fs-md)' }}>{c.title}</h3>
               <div className="row-wrap" style={{ marginTop: 4 }}>
                 <Badge tone="brass">
-                  {c.points + c.bonus_points} {theme.vocab.points}
+                  {golf ? `−${c.points + c.bonus_points} strokes` : `${c.points + c.bonus_points} ${theme.vocab.points}`}
                 </Badge>
                 {c.scope === 'team' && <Badge icon="users">{theme.vocab.team}</Badge>}
                 {!c.required && <Badge>Optional</Badge>}
@@ -158,7 +162,6 @@ export default function PlayVenue() {
                 <Icon name="navigation" /> Directions
               </a>
             )}
-            {theme.golfCard && v.par != null && <Badge icon="flag">Par {v.par}</Badge>}
             {v.bonus_points > 0 && <Badge tone="brass" icon="sparkles">Clean sweep +{v.bonus_points}</Badge>}
             {v.time_limit_minutes && v.activated_at && <Badge icon="clock">Closes {new Date(new Date(v.activated_at).getTime() + v.time_limit_minutes * 60000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</Badge>}
           </div>
@@ -185,7 +188,29 @@ export default function PlayVenue() {
             </Banner>
           )}
 
-          {challenges.length === 0 ? (
+          {golf && member?.is_player && (
+            <GolfHoleCard
+              event={event}
+              venue={v}
+              score={golfScores.data?.find((x) => x.venue_id === v.id && x.member_id === member.id)}
+              canRecord={canSubmit}
+              closedReason={
+                iSkipped
+                  ? 'You’re skipping this hole.'
+                  : event.status === 'paused'
+                    ? 'Paused — scores reopen soon.'
+                    : v.status === 'completed'
+                      ? 'This hole is closed. Ask the organiser if your score needs fixing.'
+                      : undefined
+              }
+            />
+          )}
+          {golf && challenges.length > 0 && (
+            <h2 className="section-title">
+              Hazards &amp; bonuses <span className="xsmall muted">each point = 1 stroke off</span>
+            </h2>
+          )}
+          {challenges.length === 0 && golf ? null : challenges.length === 0 ? (
             <EmptyState icon={v.status === 'upcoming' ? 'lock' : 'beer'} title={v.status === 'upcoming' && !event.challenges_visible_early ? 'Under wraps' : `No ${theme.vocab.challenges.toLowerCase()} here`}>
               {v.status === 'upcoming' && !event.challenges_visible_early ? `Revealed when this ${theme.vocab.venue.toLowerCase()} opens.` : 'Just enjoy this stop.'}
             </EmptyState>
@@ -249,7 +274,7 @@ export default function PlayVenue() {
         </section>
       )}
 
-      <SubmitSheet challenge={open} open={Boolean(open)} onClose={() => setOpen(null)} eventId={event.id} theme={theme} latest={openState?.latest} attemptsUsed={openState?.attemptsUsed ?? 0} />
+      <SubmitSheet challenge={open} open={Boolean(open)} onClose={() => setOpen(null)} eventId={event.id} theme={theme} golf={golf} latest={openState?.latest} attemptsUsed={openState?.attemptsUsed ?? 0} />
     </PlayerShell>
   );
 }

@@ -9,7 +9,7 @@ You need: a GitHub repository, the Supabase project `https://ndmahepsqigziirzmab
 Apply the migrations in `supabase/migrations/` **in filename order**. Either:
 
 - **Supabase CLI** (recommended): `npx supabase login`, `npx supabase link --project-ref ndmahepsqigziirzmabt`, then `npx supabase db push`.
-- **Dashboard**: SQL Editor → paste and run each file in order (`…0001_core_schema.sql` → `…0006_self_teams_shared_media.sql`).
+- **Dashboard**: SQL Editor → paste and run each file in order (`…0001_core_schema.sql` → `…0007_pub_golf.sql`).
 
 The migrations create every table, constraint, index, RLS policy, trusted RPC, both Storage buckets with their policies, and add the tables to the `supabase_realtime` publication.
 

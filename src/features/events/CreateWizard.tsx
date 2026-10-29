@@ -12,13 +12,14 @@ import { CHALLENGE_LIBRARY, EVENT_DEFAULTS, SCORING_PRESETS, TEMPLATES } from '@
 import { CHALLENGE_TYPES } from '@/features/challenges/meta';
 import { ChallengeForm, blankChallenge, cleanChallenge } from '@/features/challenges/ChallengeForm';
 import { VenueForm } from '@/features/venues/VenueForm';
-import { CustomThemeFields, DetailsFields, RulesFields, ThemePicker, type EventForm } from './EventSettingsForm';
+import { CustomThemeFields, DetailsFields, GameModeFields, RulesFields, ThemePicker, type EventForm } from './EventSettingsForm';
 import { hasErrors, parseQuickVenues, validateChallenge, validateEvent, validateVenue } from '@/lib/validation/forms';
 import { useAuth } from '@/lib/auth';
 import { db, rpc, useTemplates } from '@/lib/supabase/queries';
 import type { ChallengeDraft, TemplatePayload, VenueDraft } from '@/lib/supabase/types';
 import { rememberEvent } from '@/lib/recent';
 import { RouteMap, MapCredit } from '@/features/map/LazyMap';
+import { GOLF_HOLES } from '@/features/golf/golf';
 import { venueLatLng } from '@/features/map/geo';
 
 const STORAGE_KEY = 'roundhouse-wizard-v1';
@@ -45,6 +46,11 @@ function fromTheme(themeKey: ThemeKey, organiser = ''): WizardState {
     teamNames: tpl.teamNames.slice(0, 4),
     scoring: preset.key,
   };
+}
+
+/** Give every hole without one a drink and par from the starter golf course. */
+function withGolfDefaults<T extends VenueDraft>(venues: T[]): T[] {
+  return venues.map((v, i) => ({ ...v, drink: v.drink || GOLF_HOLES[i % GOLF_HOLES.length].drink, par: v.par ?? GOLF_HOLES[i % GOLF_HOLES.length].par }));
 }
 
 function loadSaved(): WizardState | null {
@@ -111,7 +117,12 @@ export default function CreateWizard() {
       return;
     }
     const fresh = fromTheme(k, s.event.organiser_name);
-    setS({ ...fresh, event: { ...fresh.event, name: s.event.name, event_date: s.event.event_date, start_time: s.event.start_time, start_location: s.event.start_location } });
+    const golf = s.event.game_mode === 'golf';
+    setS({
+      ...fresh,
+      venues: golf ? withGolfDefaults(fresh.venues) : fresh.venues,
+      event: { ...fresh.event, name: s.event.name, event_date: s.event.event_date, start_time: s.event.start_time, start_location: s.event.start_location, game_mode: s.event.game_mode ?? 'crawl', golf_default_par: s.event.golf_default_par ?? 3, golf_max_over: s.event.golf_max_over ?? 3 },
+    });
   };
 
   const validateStep = (step: number): boolean => {
@@ -232,7 +243,12 @@ export default function CreateWizard() {
         )}
         {s.step === 0 && (
           <section className="stack">
-            <h1>Pick a vibe</h1>
+            <h1>What are you playing?</h1>
+            <GameModeFields
+              value={s.event}
+              onChange={(e) => setS((x) => ({ ...x, event: e, venues: e.game_mode === 'golf' && x.event.game_mode !== 'golf' ? withGolfDefaults(x.venues) : x.venues }))}
+            />
+            <h2 style={{ marginTop: 'var(--s-4)' }}>Pick a vibe</h2>
             <p className="muted">Themes change the look, the words and the starter challenges. You can edit everything afterwards.</p>
             <ThemePicker value={s.event.theme_key ?? 'classic'} onChange={pickTheme} />
             {s.event.theme_key === 'custom' && <CustomThemeFields value={s.event.theme_custom ?? {}} onChange={(c) => setEvent({ ...s.event, theme_custom: c })} />}
@@ -302,6 +318,7 @@ export default function CreateWizard() {
                         {v.name || 'Untitled'}
                       </strong>
                       <span className="xsmall muted">
+                        {s.event.game_mode === 'golf' ? `Par ${v.par ?? s.event.golf_default_par ?? 3}${v.drink ? ` · ${v.drink}` : ''} · ` : ''}
                         {v.challenges.length} {v.challenges.length === 1 ? theme.vocab.challenge.toLowerCase() : theme.vocab.challenges.toLowerCase()}
                         {v.address ? ` · ${v.address}` : ''}
                       </span>
@@ -395,7 +412,7 @@ export default function CreateWizard() {
             <h1 className="deco-title">{s.event.name}</h1>
             <Card className="stack-sm">
               <p>
-                <strong>{theme.name}</strong> · {s.event.event_date || 'No date yet'} {s.event.start_time ? `at ${s.event.start_time}` : ''}
+                <strong>{s.event.game_mode === 'golf' ? 'Pub golf' : 'Pub crawl'}</strong> · {theme.name} · {s.event.event_date || 'No date yet'} {s.event.start_time ? `at ${s.event.start_time}` : ''}
               </p>
               <p className="small muted">
                 {s.venues.length} {theme.vocab.venues.toLowerCase()}, {totalChallenges} {theme.vocab.challenges.toLowerCase()}, {s.event.play_mode === 'individual' ? 'individual play' : `${s.teamNames.length} ${theme.vocab.team.toLowerCase()}s`},{' '}
@@ -408,6 +425,11 @@ export default function CreateWizard() {
                   <strong>
                     {i + 1}. {v.name}
                   </strong>
+                  {s.event.game_mode === 'golf' && (
+                    <span className="small" style={{ display: 'block' }}>
+                      Par {v.par ?? s.event.golf_default_par ?? 3}{v.drink ? ` · ${v.drink}` : ''}
+                    </span>
+                  )}
                   <ul className="small muted" style={{ margin: '4px 0 0', paddingLeft: 18 }}>
                     {v.challenges.map((c, j) => (
                       <li key={j}>
@@ -458,7 +480,7 @@ export default function CreateWizard() {
       <Sheet open={Boolean(editing && editVenue)} onClose={() => setEditing(null)} title={editing?.c != null ? (editing.c === 'new' ? `New ${theme.vocab.challenge.toLowerCase()}` : `Edit ${theme.vocab.challenge.toLowerCase()}`) : editVenue?.name || theme.vocab.venue}>
         {editing && editVenue && editing.c == null && (
           <div className="stack-lg">
-            <VenueForm value={editVenue} theme={theme} errors={validateVenue(editVenue)} onChange={(nv) => setVenues((vs) => vs.map((x, j) => (j === editing.v ? { ...x, ...nv } : x)))} />
+            <VenueForm value={editVenue} theme={theme} golf={s.event.game_mode === 'golf'} defaultPar={s.event.golf_default_par ?? 3} errors={validateVenue(editVenue)} onChange={(nv) => setVenues((vs) => vs.map((x, j) => (j === editing.v ? { ...x, ...nv } : x)))} />
             <section className="stack-sm">
               <div className="row-between">
                 <h3>{theme.vocab.challenges}</h3>

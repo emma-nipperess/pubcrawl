@@ -8,7 +8,7 @@ import { Icon } from '@/components/Icon';
 import type { Errors } from '@/lib/validation/forms';
 import type { ThemeDef } from '@/features/themes/themes';
 
-export function VenueForm({ value, onChange, errors, theme }: { value: VenueDraft; onChange: (v: VenueDraft) => void; errors?: Errors; theme: ThemeDef }) {
+export function VenueForm({ value, onChange, errors, theme, golf, defaultPar = 3 }: { value: VenueDraft; onChange: (v: VenueDraft) => void; errors?: Errors; theme: ThemeDef; golf?: boolean; defaultPar?: number }) {
   const set = <K extends keyof VenueDraft>(k: K, v: VenueDraft[K]) => onChange({ ...value, [k]: v });
   const [more, setMore] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -35,6 +35,12 @@ export function VenueForm({ value, onChange, errors, theme }: { value: VenueDraf
   return (
     <div className="stack">
       <TextInput label={`${theme.vocab.venue} name`} value={value.name} maxLength={80} onChange={(e) => set('name', e.target.value)} error={errors?.name} placeholder="The Red Lion" />
+      {golf && (
+        <div className="grid-2">
+          <TextInput label="Drink for this hole" value={value.drink ?? ''} maxLength={120} onChange={(e) => set('drink', e.target.value)} placeholder="Pint or soft drink" hint="Say a soft-drink option is fine." />
+          <NumberInput label="Par (strokes)" min={1} max={20} value={value.par ?? null} onValue={(n) => set('par', n)} placeholder={String(defaultPar)} hint={`Blank = ${defaultPar}`} />
+        </div>
+      )}
       <TextInput label="Address" value={value.address ?? ''} maxLength={200} onChange={(e) => set('address', e.target.value)} autoComplete="street-address" placeholder="12 High Street" />
       <TextInput
         label="Maps link (optional)"
@@ -106,7 +112,7 @@ export function VenueForm({ value, onChange, errors, theme }: { value: VenueDraf
               onValue={(n) => set('bonus_points', n ?? 0)}
               error={errors?.bonus_points}
             />
-            {theme.golfCard && <NumberInput label="Par" hint="Shown on the scorecard" min={0} max={10000} value={value.par ?? null} onValue={(n) => set('par', n)} />}
+
           </div>
           <div className="grid-2">
             <NumberInput label="Latitude" value={value.latitude ?? null} onValue={(n) => set('latitude', n)} error={errors?.latitude} />

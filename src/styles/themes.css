@@ -192,3 +192,5 @@
 }
 .scorecard-golf thead th { background: var(--c-accent); color: var(--c-accent-ink); }
 .scorecard-golf .is-current { outline: 3px solid var(--c-accent-2); outline-offset: -3px; }
+.scorecard-golf .golf-under { color: var(--c-success); font-weight: 800; text-decoration: underline; text-decoration-style: double; }
+.scorecard-golf .golf-pickup { color: var(--c-danger); font-style: italic; }
