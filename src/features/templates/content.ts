@@ -102,7 +102,7 @@ export const TEMPLATES: Record<ThemeKey, ThemeTemplate> = {
     ],
   },
   halloween: {
-    teamNames: ['The Coven', 'Grave Diggers', 'Boo Crew', 'Night Shift', 'Pumpkin Heads', 'The Undead'],
+    teamNames: ['Ghouls Night Out', 'Grave Diggers', 'Boo Crew', 'Night Shift', 'Pumpkin Heads', 'The Undead'],
     teamColors: ['#ff7a1a', '#a6e35f', '#9b5de5', '#f15bb5', '#00bbf9', '#fee440'],
     scoringPreset: 'refereed',
     event: { play_mode: 'team', team_selection: 'self' },

@@ -39,7 +39,7 @@ const preview = {
   current_venue: null,
   my_status: null,
   teams: [
-    { id: 't1', name: 'The Coven', color: '#ff7a1a', icon: 'ghost', max_size: null, size: 2 },
+    { id: 't1', name: 'Ghouls Night Out', color: '#ff7a1a', icon: 'ghost', max_size: null, size: 2 },
     { id: 't2', name: 'Boo Crew', color: '#a6e35f', icon: 'moon', max_size: 2, size: 2 },
   ],
 };
@@ -136,7 +136,7 @@ test('joining validates the name, then signs in as a guest and enters the event'
   await page.getByRole('button', { name: 'Join the crawl' }).click();
   await expect(page.getByText(/Pick a name/)).toBeVisible();
   await page.getByLabel('Your name').fill('Alex');
-  await page.getByRole('radio', { name: /The Coven/ }).check({ force: true });
+  await page.getByRole('radio', { name: /Ghouls Night Out/ }).check({ force: true });
   await page.getByRole('button', { name: 'Join the crawl' }).click();
   await expect(page).toHaveURL(new RegExp(`${BASE}e/${EVENT_ID}$`));
   expect(calls).toContain('POST /auth/v1/signup');

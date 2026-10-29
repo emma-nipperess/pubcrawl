@@ -45,7 +45,7 @@ export const THEMES: Record<ThemeKey, ThemeDef> = {
     motif: 'bats',
     preview: { bg: '#15111b', ink: '#f7efe4', accent: '#ff7a1a', accent2: '#a6e35f' },
     dark: true,
-    vocab: { venue: 'Haunt', venues: 'Haunts', challenge: 'Dare', challenges: 'Dares', team: 'Coven', points: 'souls', leaderboard: 'Crypt of champions' },
+    vocab: { venue: 'Haunt', venues: 'Haunts', challenge: 'Dare', challenges: 'Dares', team: 'Team', points: 'souls', leaderboard: 'Crypt of champions' },
     golfCard: false,
     icons: ['ghost', 'moon', 'flame', 'cat', 'candy', 'skull'],
     loadFont: () => import('@fontsource/creepster/400.css'),

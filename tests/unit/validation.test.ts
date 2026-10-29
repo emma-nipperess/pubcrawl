@@ -144,7 +144,7 @@ describe('themes and templates', () => {
 
 describe('download all', () => {
   it('names downloaded media by order, time, team, person and challenge', () => {
-    const m = { created_at: '2026-10-31T20:05:00', member_name: 'Alex', team_name: 'The Coven', challenge_title: 'Costume reveal / pose', mime_type: 'image/jpeg' } as EventMediaItem;
-    expect(zipEntryName(m, 0)).toMatch(/^001 20261031-2005 The Coven - Alex - Costume reveal - pose\.jpg$/);
+    const m = { created_at: '2026-10-31T20:05:00', member_name: 'Alex', team_name: 'Ghouls Night Out', challenge_title: 'Costume reveal / pose', mime_type: 'image/jpeg' } as EventMediaItem;
+    expect(zipEntryName(m, 0)).toMatch(/^001 20261031-2005 Ghouls Night Out - Alex - Costume reveal - pose\.jpg$/);
   });
 });
