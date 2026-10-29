@@ -66,6 +66,10 @@ All points live in `score_ledger`, written only by trusted functions. Each row h
 
 `get_leaderboard` computes ranks in SQL with standard competition ranking (1, 1, 3). Tie-break options: `shared` (equal rank), `most_completed` (more completed submissions first), `earliest` (whoever reached their score first). Anything still equal shares a rank and is flagged `tied`. Hidden leaderboards show only your own/team rows until the event is completed.
 
+## Pub golf mode
+
+`events.game_mode = 'golf'` switches ranking to strokes. Players record one `golf_scores` row per hole through `record_golf_score` (own score, hole open; organisers can fix any started hole, audited). Par is `venues.par` or `events.golf_default_par`; strokes are capped at par + `golf_max_over`. A finished hole without a score counts as that cap unless `skip_policy = 'none'`; holes before a late joiner arrived never count. Challenge ledger points subtract strokes. `get_golf_leaderboard` returns to-par per player (lowest first, unplayed players unranked) and per team (average of players' to-par minus team-only challenge credits).
+
 ## Event lifecycle
 
 `draft → published → in_progress ⇄ paused → completed → archived`, plus `cancelled` from any pre-completion state. Enforced by `public.event_status_transition_allowed` in the database; the UI mirrors it in `src/features/events/status.ts`. A published event with participants can't return to draft. Starting opens the first venue; advancing closes the current one and marks any jumped-over upcoming venues as skipped.

@@ -71,10 +71,11 @@ npm run test:e2e    # production build + Playwright (needs Node 20 and Chrome, o
 
 1. Push the repository to GitHub (default branch `main`).
 2. Settings → Pages → **Source: GitHub Actions**.
-3. Settings → Secrets and variables → Actions → **Variables** (not secrets — they are public values baked into the bundle):
+3. Settings → Secrets and variables → Actions → **Variables** or **Secrets** (either works; they are public values baked into the bundle):
    - `VITE_SUPABASE_URL` = `https://ndmahepsqigziirzmabt.supabase.co`
    - `VITE_SUPABASE_ANON_KEY` = the anon/publishable key
    - optional `CUSTOM_DOMAIN` = e.g. `crawl.example.com` (builds for `/` and writes `CNAME`)
+   - optional `VITE_BASE_PATH` = force a base path, e.g. `/` (repos named `<user>.github.io` get `/` automatically)
 4. Push to `main` (or run the workflow manually). The workflow type-checks, lints, runs unit + DB + E2E tests, builds and deploys.
 
 ### Deep links on Pages

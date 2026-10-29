@@ -45,17 +45,26 @@ jobs:
       - run: npm ci
       - name: Build
         env:
-          # Public values only — set them under Settings → Secrets and variables → Actions → Variables.
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
-          # "/<repo>/" for project sites; set the CUSTOM_DOMAIN variable to build for "/" instead.
-          VITE_BASE_PATH: ${{ vars.CUSTOM_DOMAIN && '/' || format('/{0}/', github.event.repository.name) }}
+          # Public values (the anon/publishable key is designed to be public).
+          # Set them as repository *Variables* or *Secrets* — either works.
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
+          BASE_OVERRIDE: ${{ vars.VITE_BASE_PATH }}
           CUSTOM_DOMAIN: ${{ vars.CUSTOM_DOMAIN }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          OWNER: ${{ github.repository_owner }}
         run: |
           if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_ANON_KEY" ]; then
-            echo "::error::Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY repository variables"; exit 1
+            echo "::error::Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (Settings → Secrets and variables → Actions)"; exit 1
           fi
-          npm run build
+          # Base path: explicit override > custom domain or <owner>.github.io repo ("/") > "/<repo>/"
+          owner_lc=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
+          repo_lc=$(echo "$REPO_NAME" | tr '[:upper:]' '[:lower:]')
+          if [ -n "$BASE_OVERRIDE" ]; then BASE="$BASE_OVERRIDE"
+          elif [ -n "$CUSTOM_DOMAIN" ] || [ "$repo_lc" = "$owner_lc.github.io" ]; then BASE="/"
+          else BASE="/$REPO_NAME/"; fi
+          echo "Building with base path: $BASE"
+          VITE_BASE_PATH="$BASE" npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
